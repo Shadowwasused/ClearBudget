@@ -7,6 +7,16 @@ import {
   FiX,
 } from "react-icons/fi";
 
+import {
+  accounts,
+  calculateTransactionTotals,
+  categories,
+  formatCurrency,
+  formatTransactionDate,
+  loadTransactions,
+  saveTransactions,
+} from "../lib/transactions";
+
 const defaultForm = {
   description: "",
   amount: "",
@@ -17,75 +27,8 @@ const defaultForm = {
   notes: "",
 };
 
-const categories = [
-  "Groceries",
-  "Dining",
-  "Transportation",
-  "Housing",
-  "Utilities",
-  "Entertainment",
-  "Shopping",
-  "Healthcare",
-  "Income",
-  "Other",
-];
-
-const accounts = [
-  "Checking",
-  "Savings",
-  "Credit Card",
-  "Cash",
-];
-
-const starterTransactions = [
-  {
-    id: crypto.randomUUID(),
-    description: "Walmart",
-    amount: 128.43,
-    date: "2026-07-29",
-    category: "Groceries",
-    account: "Checking",
-    type: "expense",
-    notes: "",
-  },
-  {
-    id: crypto.randomUUID(),
-    description: "Payroll Deposit",
-    amount: 2800,
-    date: "2026-07-28",
-    category: "Income",
-    account: "Checking",
-    type: "income",
-    notes: "",
-  },
-  {
-    id: crypto.randomUUID(),
-    description: "Shell",
-    amount: 54.18,
-    date: "2026-07-27",
-    category: "Transportation",
-    account: "Credit Card",
-    type: "expense",
-    notes: "",
-  },
-];
-
 function Transactions() {
-  const [transactions, setTransactions] = useState(() => {
-    const savedTransactions = localStorage.getItem(
-      "clearbudget-transactions",
-    );
-
-    if (savedTransactions) {
-      try {
-        return JSON.parse(savedTransactions);
-      } catch {
-        return starterTransactions;
-      }
-    }
-
-    return starterTransactions;
-  });
+ const [transactions, setTransactions] = useState(loadTransactions);
 
   const [form, setForm] = useState(defaultForm);
   const [editingId, setEditingId] = useState(null);
@@ -96,12 +39,9 @@ function Transactions() {
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [typeFilter, setTypeFilter] = useState("all");
 
-  useEffect(() => {
-    localStorage.setItem(
-      "clearbudget-transactions",
-      JSON.stringify(transactions),
-    );
-  }, [transactions]);
+ useEffect(() => {
+  saveTransactions(transactions);
+}, [transactions]);
 
   const filteredTransactions = useMemo(() => {
     return [...transactions]
@@ -141,21 +81,16 @@ function Transactions() {
     typeFilter,
   ]);
 
-  const totals = useMemo(() => {
-    const income = transactions
-      .filter((transaction) => transaction.type === "income")
-      .reduce((total, transaction) => total + transaction.amount, 0);
+  const totals = useMemo(
+  () => calculateTransactionTotals(transactions),
+  [transactions],
+);
 
     const expenses = transactions
       .filter((transaction) => transaction.type === "expense")
       .reduce((total, transaction) => total + transaction.amount, 0);
 
-    return {
-      income,
-      expenses,
-      balance: income - expenses,
-    };
-  }, [transactions]);
+  
 
   function openAddModal() {
     setEditingId(null);
@@ -267,20 +202,6 @@ function Transactions() {
     setTypeFilter("all");
   }
 
-  function formatCurrency(amount) {
-    return new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: "USD",
-    }).format(amount);
-  }
-
-  function formatDate(date) {
-    return new Intl.DateTimeFormat("en-US", {
-      month: "short",
-      day: "numeric",
-      year: "numeric",
-    }).format(new Date(`${date}T12:00:00`));
-  }
 
   return (
     <div className="page-content">
@@ -417,7 +338,7 @@ function Transactions() {
               {filteredTransactions.length > 0 ? (
                 filteredTransactions.map((transaction) => (
                   <tr key={transaction.id}>
-                    <td>{formatDate(transaction.date)}</td>
+                    <td>{formatTransactionDate(transaction.date)}</td>
 
                     <td>
                       <div className="transaction-description-cell">
