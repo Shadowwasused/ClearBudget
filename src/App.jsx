@@ -1,252 +1,416 @@
+import { useState } from "react";
+import { NavLink, Navigate, Route, Routes } from "react-router-dom";
 import {
+  FiBarChart2,
+  FiCalendar,
+  FiDollarSign,
   FiHome,
-  FiCreditCard,
-  FiFileText,
+  FiMenu,
   FiPieChart,
   FiSettings,
-  FiTarget,
-  FiTrendingDown,
-  FiTrendingUp,
-  FiDollarSign,
+  FiX,
 } from "react-icons/fi";
-import "./index.css";
 
-function App() {
+const navigationItems = [
+  {
+    name: "Dashboard",
+    path: "/dashboard",
+    icon: FiHome,
+  },
+  {
+    name: "Transactions",
+    path: "/transactions",
+    icon: FiDollarSign,
+  },
+  {
+    name: "Bills",
+    path: "/bills",
+    icon: FiCalendar,
+  },
+  {
+    name: "Budget",
+    path: "/budget",
+    icon: FiPieChart,
+  },
+  {
+    name: "Reports",
+    path: "/reports",
+    icon: FiBarChart2,
+  },
+  {
+    name: "Settings",
+    path: "/settings",
+    icon: FiSettings,
+  },
+];
+
+function Dashboard() {
   return (
-    <div className="app-shell">
-      <aside className="sidebar">
-        <div className="brand">
-          <div className="brand-icon">$</div>
-
-          <div>
-            <h1>ClearBudget</h1>
-            <p>Personal Finance</p>
-          </div>
+    <div className="page-content">
+      <div className="page-heading">
+        <div>
+          <p className="page-eyebrow">Financial overview</p>
+          <h1>Dashboard</h1>
+          <p className="page-description">
+            Review your money, spending, bills, and savings.
+          </p>
         </div>
 
-        <nav className="navigation">
-          <button className="nav-item active">
-            <FiHome />
-            Dashboard
-          </button>
+        <button className="primary-button" type="button">
+          Add transaction
+        </button>
+      </div>
 
-          <button className="nav-item">
-            <FiCreditCard />
-            Transactions
-          </button>
+      <div className="summary-grid">
+        <SummaryCard
+          title="Total balance"
+          value="$12,450.00"
+          change="+$825.00 this month"
+        />
 
-          <button className="nav-item">
-            <FiFileText />
-            Bills
-          </button>
+        <SummaryCard
+          title="Monthly income"
+          value="$5,600.00"
+          change="+4.2% from last month"
+        />
 
-          <button className="nav-item">
-            <FiPieChart />
-            Budget
-          </button>
+        <SummaryCard
+          title="Monthly spending"
+          value="$3,245.70"
+          change="$2,354.30 remaining"
+        />
 
-          <button className="nav-item">
-            <FiTarget />
-            Goals
-          </button>
+        <SummaryCard
+          title="Savings"
+          value="$2,354.30"
+          change="42% of monthly income"
+        />
+      </div>
 
-          <button className="nav-item">
-            <FiDollarSign />
-            Reports
-          </button>
+      <div className="dashboard-grid">
+        <section className="content-card spending-card">
+          <div className="card-heading">
+            <div>
+              <p className="card-label">Monthly activity</p>
+              <h2>Spending overview</h2>
+            </div>
 
-          <button className="nav-item">
-            <FiSettings />
-            Settings
-          </button>
-        </nav>
-      </aside>
-
-      <main className="main-content">
-        <header className="topbar">
-          <div>
-            <p className="eyebrow">Financial overview</p>
-            <h2>Welcome to ClearBudget</h2>
+            <select className="month-select" defaultValue="July">
+              <option>July</option>
+              <option>June</option>
+              <option>May</option>
+            </select>
           </div>
 
-          <button className="primary-button">Add Transaction</button>
-        </header>
+          <div className="chart-placeholder">
+            <div className="chart-bar chart-bar-one" />
+            <div className="chart-bar chart-bar-two" />
+            <div className="chart-bar chart-bar-three" />
+            <div className="chart-bar chart-bar-four" />
+            <div className="chart-bar chart-bar-five" />
+            <div className="chart-bar chart-bar-six" />
+            <div className="chart-bar chart-bar-seven" />
+          </div>
 
-        <section className="summary-grid">
-          <article className="summary-card">
-            <div className="summary-icon">
+          <div className="chart-labels">
+            <span>Week 1</span>
+            <span>Week 2</span>
+            <span>Week 3</span>
+            <span>Week 4</span>
+          </div>
+        </section>
+
+        <section className="content-card">
+          <div className="card-heading">
+            <div>
+              <p className="card-label">Next 30 days</p>
+              <h2>Upcoming bills</h2>
+            </div>
+
+            <NavLink className="text-link" to="/bills">
+              View all
+            </NavLink>
+          </div>
+
+          <div className="bill-list">
+            <BillItem name="Rent" date="August 1" amount="$1,450.00" />
+            <BillItem name="Electric" date="August 5" amount="$142.00" />
+            <BillItem name="Internet" date="August 9" amount="$79.99" />
+            <BillItem name="Car insurance" date="August 14" amount="$185.00" />
+          </div>
+        </section>
+      </div>
+
+      <section className="content-card">
+        <div className="card-heading">
+          <div>
+            <p className="card-label">Latest activity</p>
+            <h2>Recent transactions</h2>
+          </div>
+
+          <NavLink className="text-link" to="/transactions">
+            View all
+          </NavLink>
+        </div>
+
+        <div className="transaction-list">
+          <TransactionItem
+            name="Grocery Store"
+            category="Groceries"
+            date="July 28"
+            amount="-$124.68"
+          />
+
+          <TransactionItem
+            name="Payroll Deposit"
+            category="Income"
+            date="July 26"
+            amount="+$2,800.00"
+            positive
+          />
+
+          <TransactionItem
+            name="Gas Station"
+            category="Transportation"
+            date="July 25"
+            amount="-$58.42"
+          />
+        </div>
+      </section>
+    </div>
+  );
+}
+
+function Transactions() {
+  return (
+    <PagePlaceholder
+      eyebrow="Money activity"
+      title="Transactions"
+      description="Add, review, search, and categorize your income and purchases."
+      buttonText="Add transaction"
+    />
+  );
+}
+
+function Bills() {
+  return (
+    <PagePlaceholder
+      eyebrow="Payment schedule"
+      title="Bills"
+      description="Track upcoming bills, due dates, payment status, and recurring expenses."
+      buttonText="Add bill"
+    />
+  );
+}
+
+function Budget() {
+  return (
+    <PagePlaceholder
+      eyebrow="Spending plan"
+      title="Budget"
+      description="Create monthly budgets and track spending by category."
+      buttonText="Create budget"
+    />
+  );
+}
+
+function Reports() {
+  return (
+    <PagePlaceholder
+      eyebrow="Financial analysis"
+      title="Reports"
+      description="Review income, spending, savings, and printable financial summaries."
+      buttonText="Create report"
+    />
+  );
+}
+
+function Settings() {
+  return (
+    <PagePlaceholder
+      eyebrow="Application preferences"
+      title="Settings"
+      description="Manage your profile, accounts, categories, notifications, and report options."
+      buttonText="Save settings"
+    />
+  );
+}
+
+function PagePlaceholder({ eyebrow, title, description, buttonText }) {
+  return (
+    <div className="page-content">
+      <div className="page-heading">
+        <div>
+          <p className="page-eyebrow">{eyebrow}</p>
+          <h1>{title}</h1>
+          <p className="page-description">{description}</p>
+        </div>
+
+        <button className="primary-button" type="button">
+          {buttonText}
+        </button>
+      </div>
+
+      <section className="content-card empty-state">
+        <div className="empty-state-icon">
+          <FiDollarSign />
+        </div>
+
+        <h2>{title} is ready to build</h2>
+        <p>
+          The navigation is connected. We will build the full {title.toLowerCase()}{" "}
+          feature next.
+        </p>
+      </section>
+    </div>
+  );
+}
+
+function SummaryCard({ title, value, change }) {
+  return (
+    <section className="summary-card">
+      <p>{title}</p>
+      <h2>{value}</h2>
+      <span>{change}</span>
+    </section>
+  );
+}
+
+function BillItem({ name, date, amount }) {
+  return (
+    <div className="bill-item">
+      <div className="bill-icon">
+        <FiCalendar />
+      </div>
+
+      <div className="bill-details">
+        <strong>{name}</strong>
+        <span>Due {date}</span>
+      </div>
+
+      <strong className="bill-amount">{amount}</strong>
+    </div>
+  );
+}
+
+function TransactionItem({ name, category, date, amount, positive = false }) {
+  return (
+    <div className="transaction-item">
+      <div className="transaction-icon">
+        <FiDollarSign />
+      </div>
+
+      <div className="transaction-details">
+        <strong>{name}</strong>
+        <span>
+          {category} · {date}
+        </span>
+      </div>
+
+      <strong
+        className={
+          positive
+            ? "transaction-amount transaction-positive"
+            : "transaction-amount"
+        }
+      >
+        {amount}
+      </strong>
+    </div>
+  );
+}
+
+function App() {
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  function closeSidebar() {
+    setSidebarOpen(false);
+  }
+
+  return (
+    <div className="app-shell">
+      <button
+        className="mobile-menu-button"
+        type="button"
+        onClick={() => setSidebarOpen(true)}
+        aria-label="Open navigation"
+      >
+        <FiMenu />
+      </button>
+
+      {sidebarOpen && (
+        <button
+          className="sidebar-overlay"
+          type="button"
+          aria-label="Close navigation"
+          onClick={closeSidebar}
+        />
+      )}
+
+      <aside className={`sidebar ${sidebarOpen ? "sidebar-open" : ""}`}>
+        <div className="sidebar-header">
+          <div className="brand">
+            <div className="brand-icon">
               <FiDollarSign />
             </div>
 
             <div>
-              <p>Total Balance</p>
-              <h3>$8,420.36</h3>
-              <span className="positive">+$620 this month</span>
+              <strong>ClearBudget</strong>
+              <span>Personal finance</span>
             </div>
-          </article>
+          </div>
 
-          <article className="summary-card">
-            <div className="summary-icon">
-              <FiTrendingUp />
-            </div>
+          <button
+            className="sidebar-close-button"
+            type="button"
+            onClick={closeSidebar}
+            aria-label="Close navigation"
+          >
+            <FiX />
+          </button>
+        </div>
 
-            <div>
-              <p>Monthly Income</p>
-              <h3>$5,200.00</h3>
-              <span className="positive">Up 4.2%</span>
-            </div>
-          </article>
+        <nav className="sidebar-navigation">
+          {navigationItems.map((item) => {
+            const Icon = item.icon;
 
-          <article className="summary-card">
-            <div className="summary-icon">
-              <FiTrendingDown />
-            </div>
+            return (
+              <NavLink
+                key={item.path}
+                to={item.path}
+                onClick={closeSidebar}
+                className={({ isActive }) =>
+                  isActive ? "nav-link nav-link-active" : "nav-link"
+                }
+              >
+                <Icon />
+                <span>{item.name}</span>
+              </NavLink>
+            );
+          })}
+        </nav>
 
-            <div>
-              <p>Monthly Spending</p>
-              <h3>$3,480.75</h3>
-              <span className="negative">68% of income</span>
-            </div>
-          </article>
+        <div className="sidebar-footer">
+          <div className="profile-avatar">J</div>
 
-          <article className="summary-card">
-            <div className="summary-icon">
-              <FiFileText />
-            </div>
+          <div>
+            <strong>My Account</strong>
+            <span>Personal workspace</span>
+          </div>
+        </div>
+      </aside>
 
-            <div>
-              <p>Upcoming Bills</p>
-              <h3>$842.16</h3>
-              <span>5 bills remaining</span>
-            </div>
-          </article>
-        </section>
-
-        <section className="dashboard-grid">
-          <article className="panel spending-panel">
-            <div className="panel-heading">
-              <div>
-                <p className="eyebrow">This month</p>
-                <h3>Spending Overview</h3>
-              </div>
-
-              <button className="secondary-button">View Report</button>
-            </div>
-
-            <div className="chart-placeholder">
-              <div className="bar bar-1"></div>
-              <div className="bar bar-2"></div>
-              <div className="bar bar-3"></div>
-              <div className="bar bar-4"></div>
-              <div className="bar bar-5"></div>
-              <div className="bar bar-6"></div>
-            </div>
-
-            <div className="chart-labels">
-              <span>Jan</span>
-              <span>Feb</span>
-              <span>Mar</span>
-              <span>Apr</span>
-              <span>May</span>
-              <span>Jun</span>
-            </div>
-          </article>
-
-          <article className="panel">
-            <div className="panel-heading">
-              <div>
-                <p className="eyebrow">Next 30 days</p>
-                <h3>Upcoming Bills</h3>
-              </div>
-            </div>
-
-            <div className="bill-list">
-              <div className="bill-row">
-                <div>
-                  <strong>Electric</strong>
-                  <span>Due August 2</span>
-                </div>
-                <strong>$184.52</strong>
-              </div>
-
-              <div className="bill-row">
-                <div>
-                  <strong>Internet</strong>
-                  <span>Due August 5</span>
-                </div>
-                <strong>$79.99</strong>
-              </div>
-
-              <div className="bill-row">
-                <div>
-                  <strong>Car Payment</strong>
-                  <span>Due August 9</span>
-                </div>
-                <strong>$425.00</strong>
-              </div>
-
-              <div className="bill-row">
-                <div>
-                  <strong>Phone</strong>
-                  <span>Due August 12</span>
-                </div>
-                <strong>$94.20</strong>
-              </div>
-            </div>
-          </article>
-
-          <article className="panel transactions-panel">
-            <div className="panel-heading">
-              <div>
-                <p className="eyebrow">Latest activity</p>
-                <h3>Recent Transactions</h3>
-              </div>
-
-              <button className="secondary-button">View All</button>
-            </div>
-
-            <div className="transaction-list">
-              <div className="transaction-row">
-                <div className="transaction-details">
-                  <div className="transaction-icon">W</div>
-
-                  <div>
-                    <strong>Walmart</strong>
-                    <span>Groceries · July 28</span>
-                  </div>
-                </div>
-
-                <strong className="negative">-$84.17</strong>
-              </div>
-
-              <div className="transaction-row">
-                <div className="transaction-details">
-                  <div className="transaction-icon">S</div>
-
-                  <div>
-                    <strong>Shell</strong>
-                    <span>Gas · July 27</span>
-                  </div>
-                </div>
-
-                <strong className="negative">-$46.20</strong>
-              </div>
-
-              <div className="transaction-row">
-                <div className="transaction-details">
-                  <div className="transaction-icon">P</div>
-
-                  <div>
-                    <strong>Payroll Deposit</strong>
-                    <span>Income · July 26</span>
-                  </div>
-                </div>
-
-                <strong className="positive">+$2,600.00</strong>
-              </div>
-            </div>
-          </article>
-        </section>
+      <main className="main-content">
+        <Routes>
+          <Route path="/" element={<Navigate to="/dashboard" replace />} />
+          <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/transactions" element={<Transactions />} />
+          <Route path="/bills" element={<Bills />} />
+          <Route path="/budget" element={<Budget />} />
+          <Route path="/reports" element={<Reports />} />
+          <Route path="/settings" element={<Settings />} />
+          <Route path="*" element={<Navigate to="/dashboard" replace />} />
+        </Routes>
       </main>
     </div>
   );
