@@ -3,6 +3,7 @@ import Transactions from "./pages/Transactions";
 import Dashboard from "./pages/Dashboard";
 import Bills from "./pages/Bills";
 import Budget from "./pages/Budget";
+import Goals from "./pages/Goals";
 import { NavLink, Navigate, Route, Routes } from "react-router-dom";
 import {
   FiBarChart2,
@@ -13,6 +14,7 @@ import {
   FiPieChart,
   FiSettings,
   FiX,
+  FiTarget,
 } from "react-icons/fi";
 
 const navigationItems = [
@@ -171,6 +173,15 @@ function App() {
             );
           })}
         </nav>
+       <NavLink
+  to="/goals"
+  className={({ isActive }) =>
+    isActive ? "nav-link active" : "nav-link"
+  }
+>
+  <FiTarget />
+  <span>Savings Goals</span>
+</NavLink>
 
         <div className="sidebar-footer">
           <div className="profile-avatar">J</div>
@@ -189,6 +200,7 @@ function App() {
           <Route path="/transactions" element={<Transactions />} />
           <Route path="/bills" element={<Bills />} />
           <Route path="/budget" element={<Budget />} />
+          <Route path="/goals" element={<Goals />} />
           <Route path="/reports" element={<Reports />} />
           <Route path="/settings" element={<Settings />} />
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
