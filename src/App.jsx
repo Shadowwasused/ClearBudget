@@ -2,6 +2,7 @@ import { useState } from "react";
 import Transactions from "./pages/Transactions";
 import Dashboard from "./pages/Dashboard";
 import Bills from "./pages/Bills";
+import Budget from "./pages/Budget";
 import { NavLink, Navigate, Route, Routes } from "react-router-dom";
 import {
   FiBarChart2,
@@ -47,17 +48,6 @@ const navigationItems = [
   },
 ];
 
-
-function Budget() {
-  return (
-    <PagePlaceholder
-      eyebrow="Spending plan"
-      title="Budget"
-      description="Create monthly budgets and track spending by category."
-      buttonText="Create budget"
-    />
-  );
-}
 
 function Reports() {
   return (

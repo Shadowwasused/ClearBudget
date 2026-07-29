@@ -1491,3 +1491,264 @@ a {
     align-items: flex-start;
   }
 }
+.budget-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.budget-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 15px;
+  margin-bottom: 20px;
+}
+
+.budget-toolbar .transaction-search {
+  width: min(100%, 420px);
+}
+
+.budget-month-pill {
+  min-height: 38px;
+  display: inline-flex;
+  align-items: center;
+  padding: 0 13px;
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  border-radius: 10px;
+  background: #0d1a2b;
+  color: #94a3b8;
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.budget-card-grid {
+  display: grid;
+  grid-template-columns: repeat(
+    2,
+    minmax(0, 1fr)
+  );
+  gap: 15px;
+}
+
+.budget-card {
+  padding: 20px;
+  border: 1px solid rgba(148, 163, 184, 0.12);
+  border-radius: 15px;
+  background: rgba(8, 18, 32, 0.58);
+  transition:
+    border-color 150ms ease,
+    transform 150ms ease;
+}
+
+.budget-card:hover {
+  border-color: rgba(96, 165, 250, 0.22);
+  transform: translateY(-1px);
+}
+
+.budget-card-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 15px;
+}
+
+.budget-card-heading p {
+  margin: 0 0 5px;
+  color: #64748b;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.budget-card-heading h3 {
+  margin: 0;
+  color: #f8fafc;
+  font-size: 17px;
+}
+
+.budget-card-actions {
+  display: flex;
+  gap: 7px;
+}
+
+.budget-card-numbers {
+  display: grid;
+  grid-template-columns: repeat(
+    2,
+    minmax(0, 1fr)
+  );
+  gap: 10px;
+  margin-top: 23px;
+}
+
+.budget-card-numbers div {
+  padding: 12px;
+  border: 1px solid rgba(148, 163, 184, 0.09);
+  border-radius: 10px;
+  background: rgba(13, 26, 43, 0.62);
+}
+
+.budget-card-numbers span {
+  display: block;
+  margin-bottom: 5px;
+  color: #64748b;
+  font-size: 10px;
+}
+
+.budget-card-numbers strong {
+  color: #e2e8f0;
+  font-size: 14px;
+}
+
+.budget-progress-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 15px;
+  margin-top: 20px;
+  margin-bottom: 9px;
+  color: #94a3b8;
+  font-size: 10px;
+}
+
+.budget-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 23px;
+  padding: 0 8px;
+  border-radius: 999px;
+  font-size: 9px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.budget-status-good {
+  background: rgba(52, 211, 153, 0.1);
+  color: #6ee7b7;
+}
+
+.budget-status-warning {
+  background: rgba(251, 191, 36, 0.12);
+  color: #fcd34d;
+}
+
+.budget-status-over {
+  background: rgba(251, 113, 133, 0.12);
+  color: #fda4af;
+}
+
+.budget-progress-track {
+  height: 9px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(148, 163, 184, 0.1);
+}
+
+.budget-progress-fill {
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(
+    90deg,
+    #2563eb,
+    #38bdf8
+  );
+  transition: width 300ms ease;
+}
+
+.budget-progress-warning {
+  background: linear-gradient(
+    90deg,
+    #d97706,
+    #fbbf24
+  );
+}
+
+.budget-progress-over {
+  background: linear-gradient(
+    90deg,
+    #dc2626,
+    #fb7185
+  );
+}
+
+.budget-card-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 15px;
+  margin-top: 15px;
+}
+
+.budget-card-footer > span {
+  color: #64748b;
+  font-size: 11px;
+}
+
+.budget-card-footer strong {
+  font-size: 13px;
+}
+
+.budget-empty-state {
+  padding: 70px 20px;
+  text-align: center;
+}
+
+.budget-empty-state strong,
+.budget-empty-state span {
+  display: block;
+}
+
+.budget-empty-state strong {
+  color: #e2e8f0;
+  font-size: 14px;
+}
+
+.budget-empty-state span {
+  margin-top: 7px;
+  color: #64748b;
+  font-size: 12px;
+}
+
+.primary-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+@media (max-width: 1100px) {
+  .budget-summary-grid {
+    grid-template-columns: repeat(
+      2,
+      minmax(0, 1fr)
+    );
+  }
+}
+
+@media (max-width: 800px) {
+  .budget-card-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 600px) {
+  .budget-summary-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .budget-toolbar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .budget-toolbar .transaction-search {
+    width: 100%;
+  }
+
+  .budget-month-pill {
+    justify-content: center;
+  }
+}
