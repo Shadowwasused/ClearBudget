@@ -1034,3 +1034,326 @@ a {
     width: 100%;
   }
 }
+.dashboard-add-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+}
+
+.dashboard-month-label {
+  min-height: 36px;
+  display: inline-flex;
+  align-items: center;
+  padding: 0 12px;
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  border-radius: 10px;
+  background: #0d1a2b;
+  color: #94a3b8;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.live-chart-bar {
+  max-width: 90px;
+  transition: height 300ms ease;
+}
+
+.chart-total {
+  margin-top: 18px;
+  color: #64748b;
+  font-size: 12px;
+  text-align: right;
+}
+
+.chart-total strong {
+  color: #e2e8f0;
+}
+
+.snapshot-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.snapshot-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 16px 0;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.1);
+}
+
+.snapshot-row span {
+  color: #94a3b8;
+  font-size: 13px;
+}
+
+.snapshot-row strong {
+  color: #f8fafc;
+  font-size: 14px;
+}
+
+.savings-progress-section {
+  margin-top: 24px;
+}
+
+.savings-progress-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 9px;
+  color: #94a3b8;
+  font-size: 12px;
+}
+
+.savings-progress-heading strong {
+  color: #bfdbfe;
+}
+
+.savings-progress-track {
+  height: 9px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(148, 163, 184, 0.11);
+}
+
+.savings-progress-fill {
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #2563eb, #38bdf8);
+  transition: width 300ms ease;
+}
+
+.dashboard-empty-state {
+  padding: 50px 20px;
+  color: #64748b;
+  font-size: 13px;
+  text-align: center;
+}
+
+@media (max-width: 760px) {
+  .dashboard-add-button {
+    width: 100%;
+  }
+}
+.bill-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.bill-toolbar {
+  display: grid;
+  grid-template-columns:
+    minmax(230px, 1fr)
+    minmax(150px, 0.35fr)
+    minmax(160px, 0.35fr)
+    auto;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.bill-toolbar select {
+  min-width: 0;
+  min-height: 43px;
+  padding: 0 34px 0 12px;
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  border-radius: 11px;
+  outline: none;
+  background: #0d1a2b;
+  color: #cbd5e1;
+  cursor: pointer;
+}
+
+.bill-table-wrapper {
+  width: 100%;
+  overflow-x: auto;
+  border: 1px solid rgba(148, 163, 184, 0.1);
+  border-radius: 14px;
+}
+
+.bill-table {
+  width: 100%;
+  min-width: 1080px;
+  border-collapse: collapse;
+}
+
+.bill-table th {
+  padding: 13px 15px;
+  background: rgba(8, 18, 32, 0.88);
+  color: #64748b;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-align: left;
+  text-transform: uppercase;
+}
+
+.bill-table td {
+  padding: 15px;
+  border-top: 1px solid rgba(148, 163, 184, 0.09);
+  color: #aab7ca;
+  font-size: 13px;
+  vertical-align: middle;
+}
+
+.bill-table tbody tr {
+  transition: background 150ms ease;
+}
+
+.bill-table tbody tr:hover {
+  background: rgba(37, 99, 235, 0.045);
+}
+
+.bill-name-cell {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  min-width: 190px;
+}
+
+.bill-list-icon {
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  border-radius: 10px;
+  background: rgba(37, 99, 235, 0.11);
+  color: #60a5fa;
+}
+
+.bill-name-cell strong {
+  display: block;
+  color: #e2e8f0;
+}
+
+.bill-name-cell span {
+  display: block;
+  max-width: 220px;
+  margin-top: 4px;
+  overflow: hidden;
+  color: #64748b;
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.autopay-pill,
+.bill-status-pill {
+  display: inline-flex;
+  align-items: center;
+  min-height: 26px;
+  padding: 0 9px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.autopay-pill {
+  background: rgba(148, 163, 184, 0.09);
+  color: #94a3b8;
+}
+
+.autopay-enabled {
+  background: rgba(96, 165, 250, 0.1);
+  color: #93c5fd;
+}
+
+.bill-status-paid {
+  background: rgba(52, 211, 153, 0.1);
+  color: #6ee7b7;
+}
+
+.bill-status-overdue {
+  background: rgba(251, 113, 133, 0.12);
+  color: #fda4af;
+}
+
+.bill-status-warning {
+  background: rgba(251, 191, 36, 0.12);
+  color: #fcd34d;
+}
+
+.bill-status-upcoming {
+  background: rgba(96, 165, 250, 0.1);
+  color: #93c5fd;
+}
+
+.paid-icon-button {
+  border-color: rgba(52, 211, 153, 0.22);
+  background: rgba(52, 211, 153, 0.1);
+  color: #6ee7b7;
+}
+
+.bill-toggle-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.bill-toggle-card {
+  min-height: 78px;
+  display: flex !important;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  margin: 0 !important;
+  padding: 14px 15px;
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  border-radius: 12px;
+  background: #0a1626;
+  cursor: pointer;
+}
+
+.bill-toggle-card strong {
+  display: block;
+  color: #e2e8f0;
+  font-size: 13px;
+}
+
+.bill-toggle-card span {
+  display: block;
+  margin-top: 4px;
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.bill-toggle-card input {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 auto;
+  accent-color: #2563eb;
+}
+
+@media (max-width: 1100px) {
+  .bill-toolbar {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .bill-toolbar .transaction-search {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 760px) {
+  .bill-summary-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .bill-toolbar {
+    grid-template-columns: 1fr;
+  }
+
+  .bill-toolbar .transaction-search {
+    grid-column: auto;
+  }
+
+  .bill-toggle-grid {
+    grid-template-columns: 1fr;
+  }
+}
