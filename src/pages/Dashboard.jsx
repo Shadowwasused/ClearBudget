@@ -1,6 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { NavLink } from "react-router-dom";
-import { FiCalendar, FiDollarSign } from "react-icons/fi";
+import {
+  FiCalendar,
+  FiCheckCircle,
+  FiDollarSign,
+} from "react-icons/fi";
 
 import {
   calculateTransactionTotals,
@@ -12,16 +16,32 @@ import {
   subscribeToTransactions,
 } from "../lib/transactions";
 
+import {
+  formatBillCurrency,
+  formatBillDate,
+  getBillStatus,
+  getUpcomingBills,
+  loadBills,
+  subscribeToBills,
+} from "../lib/bills";
+
 function Dashboard() {
   const [transactions, setTransactions] = useState(loadTransactions);
+  const [bills, setBills] = useState(loadBills);
 
   useEffect(() => {
-    const unsubscribe = subscribeToTransactions(setTransactions);
+    const unsubscribeTransactions =
+      subscribeToTransactions(setTransactions);
 
-    return unsubscribe;
+    const unsubscribeBills = subscribeToBills(setBills);
+
+    return () => {
+      unsubscribeTransactions();
+      unsubscribeBills();
+    };
   }, []);
 
-  const currentDate = new Date();
+  const currentDate = useMemo(() => new Date(), []);
 
   const allTimeTotals = useMemo(
     () => calculateTransactionTotals(transactions),
@@ -30,13 +50,27 @@ function Dashboard() {
 
   const monthlyTotals = useMemo(
     () => getMonthlyTotals(transactions, currentDate),
-    [transactions],
+    [transactions, currentDate],
   );
 
   const recentTransactions = useMemo(
     () => getRecentTransactions(transactions, 5),
     [transactions],
   );
+
+  const upcomingBills = useMemo(
+    () => getUpcomingBills(bills, 5),
+    [bills],
+  );
+
+  const unpaidBillTotal = useMemo(() => {
+    return bills
+      .filter((bill) => !bill.paid)
+      .reduce(
+        (total, bill) => total + Number(bill.amount || 0),
+        0,
+      );
+  }, [bills]);
 
   const weeklySpending = useMemo(() => {
     const weeks = [0, 0, 0, 0];
@@ -51,7 +85,8 @@ function Dashboard() {
       );
 
       const isCurrentMonth =
-        transactionDate.getFullYear() === currentDate.getFullYear() &&
+        transactionDate.getFullYear() ===
+          currentDate.getFullYear() &&
         transactionDate.getMonth() === currentDate.getMonth();
 
       if (!isCurrentMonth) {
@@ -59,6 +94,7 @@ function Dashboard() {
       }
 
       const dayOfMonth = transactionDate.getDate();
+
       const weekIndex = Math.min(
         Math.floor((dayOfMonth - 1) / 7),
         3,
@@ -68,9 +104,12 @@ function Dashboard() {
     });
 
     return weeks;
-  }, [transactions]);
+  }, [transactions, currentDate]);
 
-  const highestWeeklySpending = Math.max(...weeklySpending, 1);
+  const highestWeeklySpending = Math.max(
+    ...weeklySpending,
+    1,
+  );
 
   const savingsRate =
     monthlyTotals.income > 0
@@ -89,10 +128,12 @@ function Dashboard() {
       <div className="page-heading">
         <div>
           <p className="page-eyebrow">Financial overview</p>
+
           <h1>Dashboard</h1>
+
           <p className="page-description">
-            Review your balance, monthly spending, income, and recent
-            activity.
+            Review your balance, monthly spending, bills, income, and
+            recent activity.
           </p>
         </div>
 
@@ -193,61 +234,38 @@ function Dashboard() {
           </div>
         </section>
 
-        <section className="content-card">
+        <section className="content-card upcoming-bills-card">
           <div className="card-heading">
             <div>
-              <p className="card-label">Monthly snapshot</p>
-              <h2>{monthName}</h2>
-            </div>
-          </div>
-
-          <div className="snapshot-list">
-            <SnapshotRow
-              label="Income"
-              value={formatCurrency(monthlyTotals.income)}
-              valueClass="money-positive"
-            />
-
-            <SnapshotRow
-              label="Expenses"
-              value={formatCurrency(monthlyTotals.expenses)}
-              valueClass="money-negative"
-            />
-
-            <SnapshotRow
-              label="Saved"
-              value={formatCurrency(monthlyTotals.savings)}
-              valueClass={
-                monthlyTotals.savings >= 0
-                  ? "money-positive"
-                  : "money-negative"
-              }
-            />
-
-            <SnapshotRow
-              label="Transactions"
-              value={transactions.length.toString()}
-            />
-          </div>
-
-          <div className="savings-progress-section">
-            <div className="savings-progress-heading">
-              <span>Savings rate</span>
-              <strong>{savingsRate}%</strong>
+              <p className="card-label">Payment schedule</p>
+              <h2>Upcoming bills</h2>
             </div>
 
-            <div className="savings-progress-track">
-              <div
-                className="savings-progress-fill"
-                style={{
-                  width: `${Math.min(
-                    Math.max(savingsRate, 0),
-                    100,
-                  )}%`,
-                }}
-              />
-            </div>
+            <NavLink className="text-link" to="/bills">
+              View all
+            </NavLink>
           </div>
+
+          <div className="upcoming-bills-total">
+            <span>Total unpaid</span>
+            <strong>{formatBillCurrency(unpaidBillTotal)}</strong>
+          </div>
+
+          {upcomingBills.length > 0 ? (
+            <div className="dashboard-bill-list">
+              {upcomingBills.map((bill) => (
+                <DashboardBillItem key={bill.id} bill={bill} />
+              ))}
+            </div>
+          ) : (
+            <div className="dashboard-empty-state">
+              <FiCheckCircle />
+
+              <strong>All caught up</strong>
+
+              <span>You have no unpaid bills.</span>
+            </div>
+          )}
         </section>
       </div>
 
@@ -297,15 +315,33 @@ function SummaryCard({
   );
 }
 
-function SnapshotRow({
-  label,
-  value,
-  valueClass = "",
-}) {
+function DashboardBillItem({ bill }) {
+  const status = getBillStatus(bill);
+
   return (
-    <div className="snapshot-row">
-      <span>{label}</span>
-      <strong className={valueClass}>{value}</strong>
+    <div className="dashboard-bill-item">
+      <div className="dashboard-bill-icon">
+        <FiCalendar />
+      </div>
+
+      <div className="dashboard-bill-details">
+        <strong>{bill.name}</strong>
+
+        <span>
+          Due {formatBillDate(bill.dueDate)}
+          {bill.autopay ? " · Autopay" : ""}
+        </span>
+      </div>
+
+      <div className="dashboard-bill-side">
+        <strong>{formatBillCurrency(bill.amount)}</strong>
+
+        <span
+          className={`dashboard-bill-status ${status.className}`}
+        >
+          {status.label}
+        </span>
+      </div>
     </div>
   );
 }
@@ -321,6 +357,7 @@ function TransactionItem({ transaction }) {
 
       <div className="transaction-details">
         <strong>{transaction.description}</strong>
+
         <span>
           {transaction.category} ·{" "}
           {formatTransactionDate(transaction.date)}
