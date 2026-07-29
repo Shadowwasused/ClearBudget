@@ -1,4 +1,5 @@
 import { useState } from "react";
+import Transactions from "./pages/Transactions";
 import { NavLink, Navigate, Route, Routes } from "react-router-dom";
 import {
   FiBarChart2,
@@ -178,17 +179,6 @@ function Dashboard() {
         </div>
       </section>
     </div>
-  );
-}
-
-function Transactions() {
-  return (
-    <PagePlaceholder
-      eyebrow="Money activity"
-      title="Transactions"
-      description="Add, review, search, and categorize your income and purchases."
-      buttonText="Add transaction"
-    />
   );
 }
 
