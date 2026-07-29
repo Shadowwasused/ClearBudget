@@ -5,6 +5,7 @@ import Bills from "./pages/Bills";
 import Budget from "./pages/Budget";
 import Goals from "./pages/Goals";
 import Reports from "./pages/Reports";
+import Calendar from "./pages/Calendar";
 import { NavLink, Navigate, Route, Routes } from "react-router-dom";
 import {
   FiBarChart2,
@@ -172,6 +173,15 @@ function App() {
   <FiTarget />
   <span>Savings Goals</span>
 </NavLink>
+<NavLink
+  to="/calendar"
+  className={({ isActive }) =>
+    isActive ? "nav-link active" : "nav-link"
+  }
+>
+  <FiCalendar />
+  <span>Calendar</span>
+</NavLink>
 
         <div className="sidebar-footer">
           <div className="profile-avatar">J</div>
@@ -194,6 +204,7 @@ function App() {
           <Route path="/reports" element={<Reports />} />
           <Route path="/settings" element={<Settings />} />
           <Route path="*" element={<Navigate to="/dashboard" replace />} />
+          <Route path="/calendar" element={<Calendar />} />
         </Routes>
       </main>
     </div>
