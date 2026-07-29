@@ -15,13 +15,20 @@ import {
   formatBillCurrency,
   formatBillDate,
   getBillStatus,
-  loadBills,
   saveBills,
 } from "../lib/bills";
 
 import { categories } from "../lib/transactions";
 
-const defaultForm = {
+import {
+  createBill,
+  deleteBill as deleteBillFromSupabase,
+  fetchBills,
+  toggleBillPaid,
+  updateBill,
+} from "../lib/billsApi";
+
+const createDefaultForm = () => ({
   name: "",
   amount: "",
   dueDate: new Date().toISOString().slice(0, 10),
@@ -30,11 +37,11 @@ const defaultForm = {
   autopay: false,
   paid: false,
   notes: "",
-};
+});
 
 function Bills() {
-  const [bills, setBills] = useState(loadBills);
-  const [form, setForm] = useState(defaultForm);
+  const [bills, setBills] = useState([]);
+  const [form, setForm] = useState(createDefaultForm);
   const [editingId, setEditingId] = useState(null);
   const [modalOpen, setModalOpen] = useState(false);
 
@@ -42,9 +49,37 @@ function Bills() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [frequencyFilter, setFrequencyFilter] = useState("all");
 
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [loadError, setLoadError] = useState("");
+
   useEffect(() => {
-    saveBills(bills);
-  }, [bills]);
+    loadBillsFromSupabase();
+  }, []);
+
+  useEffect(() => {
+    if (!loading) {
+      saveBills(bills);
+    }
+  }, [bills, loading]);
+
+  async function loadBillsFromSupabase() {
+    setLoading(true);
+    setLoadError("");
+
+    try {
+      const loadedBills = await fetchBills();
+      setBills(loadedBills);
+      saveBills(loadedBills);
+    } catch (error) {
+      console.error("Unable to load bills:", error);
+      setLoadError(
+        "Bills could not be loaded. Check your Supabase connection.",
+      );
+    } finally {
+      setLoading(false);
+    }
+  }
 
   const filteredBills = useMemo(() => {
     return [...bills]
@@ -88,7 +123,7 @@ function Bills() {
 
   function openAddModal() {
     setEditingId(null);
-    setForm(defaultForm);
+    setForm(createDefaultForm());
     setModalOpen(true);
   }
 
@@ -110,9 +145,13 @@ function Bills() {
   }
 
   function closeModal() {
+    if (saving) {
+      return;
+    }
+
     setModalOpen(false);
     setEditingId(null);
-    setForm(defaultForm);
+    setForm(createDefaultForm());
   }
 
   function handleInputChange(event) {
@@ -124,7 +163,7 @@ function Bills() {
     }));
   }
 
-  function handleSubmit(event) {
+  async function handleSubmit(event) {
     event.preventDefault();
 
     const cleanedName = form.name.trim();
@@ -135,7 +174,7 @@ function Bills() {
       return;
     }
 
-    if (!numericAmount || numericAmount <= 0) {
+    if (!Number.isFinite(numericAmount) || numericAmount <= 0) {
       alert("Please enter an amount greater than $0.");
       return;
     }
@@ -151,60 +190,105 @@ function Bills() {
       dueDate: form.dueDate,
       category: form.category,
       frequency: form.frequency,
-      autopay: form.autopay,
-      paid: form.paid,
+      autopay: Boolean(form.autopay),
+      paid: Boolean(form.paid),
       notes: form.notes.trim(),
     };
 
-    if (editingId) {
-      setBills((currentBills) =>
-        currentBills.map((bill) =>
-          bill.id === editingId
-            ? {
-                ...bill,
-                ...billData,
-              }
-            : bill,
-        ),
-      );
-    } else {
-      setBills((currentBills) => [
-        ...currentBills,
-        {
-          id: crypto.randomUUID(),
-          ...billData,
-        },
-      ]);
-    }
+    setSaving(true);
 
-    closeModal();
+    try {
+      if (editingId) {
+        const savedBill = await updateBill(
+          editingId,
+          billData,
+        );
+
+        setBills((currentBills) =>
+          currentBills.map((bill) =>
+            bill.id === editingId ? savedBill : bill,
+          ),
+        );
+      } else {
+        const savedBill = await createBill(billData);
+
+        setBills((currentBills) => [
+          ...currentBills,
+          savedBill,
+        ]);
+      }
+
+      setModalOpen(false);
+      setEditingId(null);
+      setForm(createDefaultForm());
+    } catch (error) {
+      console.error("Unable to save bill:", error);
+      alert(
+        editingId
+          ? "The bill could not be updated."
+          : "The bill could not be created.",
+      );
+    } finally {
+      setSaving(false);
+    }
   }
 
-  function deleteBill(id) {
+  async function handleDeleteBill(id) {
+    const bill = bills.find((item) => item.id === id);
+
     const confirmed = window.confirm(
-      "Are you sure you want to delete this bill?",
+      `Are you sure you want to delete ${
+        bill?.name || "this bill"
+      }?`,
     );
 
     if (!confirmed) {
       return;
     }
 
-    setBills((currentBills) =>
-      currentBills.filter((bill) => bill.id !== id),
-    );
+    try {
+      await deleteBillFromSupabase(id);
+
+      setBills((currentBills) =>
+        currentBills.filter(
+          (currentBill) => currentBill.id !== id,
+        ),
+      );
+    } catch (error) {
+      console.error("Unable to delete bill:", error);
+      alert("The bill could not be deleted.");
+    }
   }
 
-  function togglePaid(id) {
-    setBills((currentBills) =>
-      currentBills.map((bill) =>
-        bill.id === id
-          ? {
-              ...bill,
-              paid: !bill.paid,
-            }
-          : bill,
-      ),
-    );
+  async function handleTogglePaid(id) {
+    const bill = bills.find((item) => item.id === id);
+
+    if (!bill) {
+      return;
+    }
+
+    const newPaidStatus = !bill.paid;
+
+    try {
+      const updatedBill = await toggleBillPaid(
+        id,
+        newPaidStatus,
+      );
+
+      setBills((currentBills) =>
+        currentBills.map((currentBill) =>
+          currentBill.id === id
+            ? updatedBill
+            : currentBill,
+        ),
+      );
+    } catch (error) {
+      console.error(
+        "Unable to update bill payment status:",
+        error,
+      );
+      alert("The payment status could not be updated.");
+    }
   }
 
   function clearFilters() {
@@ -218,7 +302,9 @@ function Bills() {
       <div className="page-heading">
         <div>
           <p className="page-eyebrow">Payment schedule</p>
+
           <h1>Bills</h1>
+
           <p className="page-description">
             Track due dates, recurring payments, autopay, and payment
             status.
@@ -238,22 +324,27 @@ function Bills() {
       <div className="bill-summary-grid">
         <section className="summary-card">
           <p>Amount due</p>
+
           <h2 className="money-negative">
             {formatBillCurrency(totals.unpaidAmount)}
           </h2>
+
           <span>{totals.unpaidCount} unpaid bills</span>
         </section>
 
         <section className="summary-card">
           <p>Paid</p>
+
           <h2 className="money-positive">
             {formatBillCurrency(totals.paidAmount)}
           </h2>
+
           <span>{totals.paidCount} paid bills</span>
         </section>
 
         <section className="summary-card">
           <p>Overdue</p>
+
           <h2
             className={
               totals.overdueCount > 0
@@ -263,6 +354,7 @@ function Bills() {
           >
             {totals.overdueCount}
           </h2>
+
           <span>
             {totals.overdueCount === 0
               ? "Nothing overdue"
@@ -280,7 +372,9 @@ function Bills() {
               type="search"
               placeholder="Search bills..."
               value={search}
-              onChange={(event) => setSearch(event.target.value)}
+              onChange={(event) =>
+                setSearch(event.target.value)
+              }
             />
           </div>
 
@@ -320,134 +414,174 @@ function Bills() {
           </button>
         </div>
 
-        <div className="bill-table-wrapper">
-          <table className="bill-table">
-            <thead>
-              <tr>
-                <th>Bill</th>
-                <th>Due date</th>
-                <th>Category</th>
-                <th>Frequency</th>
-                <th>Autopay</th>
-                <th>Status</th>
-                <th className="table-amount-heading">Amount</th>
-                <th className="table-actions-heading">Actions</th>
-              </tr>
-            </thead>
+        {loadError && (
+          <div className="table-empty-state">
+            <p>{loadError}</p>
 
-            <tbody>
-              {filteredBills.length > 0 ? (
-                filteredBills.map((bill) => {
-                  const status = getBillStatus(bill);
+            <button
+              className="secondary-button"
+              type="button"
+              onClick={loadBillsFromSupabase}
+            >
+              Try again
+            </button>
+          </div>
+        )}
 
-                  return (
-                    <tr key={bill.id}>
-                      <td>
-                        <div className="bill-name-cell">
-                          <div className="bill-list-icon">
-                            <FiCalendar />
-                          </div>
-
-                          <div>
-                            <strong>{bill.name}</strong>
-
-                            {bill.notes && (
-                              <span>{bill.notes}</span>
-                            )}
-                          </div>
-                        </div>
-                      </td>
-
-                      <td>{formatBillDate(bill.dueDate)}</td>
-
-                      <td>
-                        <span className="category-pill">
-                          {bill.category}
-                        </span>
-                      </td>
-
-                      <td>{bill.frequency}</td>
-
-                      <td>
-                        <span
-                          className={
-                            bill.autopay
-                              ? "autopay-pill autopay-enabled"
-                              : "autopay-pill"
-                          }
-                        >
-                          {bill.autopay ? "On" : "Off"}
-                        </span>
-                      </td>
-
-                      <td>
-                        <span
-                          className={`bill-status-pill ${status.className}`}
-                        >
-                          {status.label}
-                        </span>
-                      </td>
-
-                      <td className="table-amount">
-                        {formatBillCurrency(bill.amount)}
-                      </td>
-
-                      <td>
-                        <div className="table-actions">
-                          <button
-                            type="button"
-                            className={
-                              bill.paid
-                                ? "icon-button paid-icon-button"
-                                : "icon-button"
-                            }
-                            onClick={() => togglePaid(bill.id)}
-                            aria-label={
-                              bill.paid
-                                ? `Mark ${bill.name} unpaid`
-                                : `Mark ${bill.name} paid`
-                            }
-                            title={
-                              bill.paid
-                                ? "Mark unpaid"
-                                : "Mark paid"
-                            }
-                          >
-                            <FiCheck />
-                          </button>
-
-                          <button
-                            type="button"
-                            className="icon-button"
-                            onClick={() => openEditModal(bill)}
-                            aria-label={`Edit ${bill.name}`}
-                          >
-                            <FiEdit2 />
-                          </button>
-
-                          <button
-                            type="button"
-                            className="icon-button delete-icon-button"
-                            onClick={() => deleteBill(bill.id)}
-                            aria-label={`Delete ${bill.name}`}
-                          >
-                            <FiTrash2 />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })
-              ) : (
+        {!loadError && (
+          <div className="bill-table-wrapper">
+            <table className="bill-table">
+              <thead>
                 <tr>
-                  <td className="table-empty-state" colSpan="8">
-                    No bills match your filters.
-                  </td>
+                  <th>Bill</th>
+                  <th>Due date</th>
+                  <th>Category</th>
+                  <th>Frequency</th>
+                  <th>Autopay</th>
+                  <th>Status</th>
+                  <th className="table-amount-heading">
+                    Amount
+                  </th>
+                  <th className="table-actions-heading">
+                    Actions
+                  </th>
                 </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+
+              <tbody>
+                {loading ? (
+                  <tr>
+                    <td
+                      className="table-empty-state"
+                      colSpan="8"
+                    >
+                      Loading bills...
+                    </td>
+                  </tr>
+                ) : filteredBills.length > 0 ? (
+                  filteredBills.map((bill) => {
+                    const status = getBillStatus(bill);
+
+                    return (
+                      <tr key={bill.id}>
+                        <td>
+                          <div className="bill-name-cell">
+                            <div className="bill-list-icon">
+                              <FiCalendar />
+                            </div>
+
+                            <div>
+                              <strong>{bill.name}</strong>
+
+                              {bill.notes && (
+                                <span>{bill.notes}</span>
+                              )}
+                            </div>
+                          </div>
+                        </td>
+
+                        <td>
+                          {formatBillDate(bill.dueDate)}
+                        </td>
+
+                        <td>
+                          <span className="category-pill">
+                            {bill.category}
+                          </span>
+                        </td>
+
+                        <td>{bill.frequency}</td>
+
+                        <td>
+                          <span
+                            className={
+                              bill.autopay
+                                ? "autopay-pill autopay-enabled"
+                                : "autopay-pill"
+                            }
+                          >
+                            {bill.autopay ? "On" : "Off"}
+                          </span>
+                        </td>
+
+                        <td>
+                          <span
+                            className={`bill-status-pill ${status.className}`}
+                          >
+                            {status.label}
+                          </span>
+                        </td>
+
+                        <td className="table-amount">
+                          {formatBillCurrency(bill.amount)}
+                        </td>
+
+                        <td>
+                          <div className="table-actions">
+                            <button
+                              type="button"
+                              className={
+                                bill.paid
+                                  ? "icon-button paid-icon-button"
+                                  : "icon-button"
+                              }
+                              onClick={() =>
+                                handleTogglePaid(bill.id)
+                              }
+                              aria-label={
+                                bill.paid
+                                  ? `Mark ${bill.name} unpaid`
+                                  : `Mark ${bill.name} paid`
+                              }
+                              title={
+                                bill.paid
+                                  ? "Mark unpaid"
+                                  : "Mark paid"
+                              }
+                            >
+                              <FiCheck />
+                            </button>
+
+                            <button
+                              type="button"
+                              className="icon-button"
+                              onClick={() =>
+                                openEditModal(bill)
+                              }
+                              aria-label={`Edit ${bill.name}`}
+                            >
+                              <FiEdit2 />
+                            </button>
+
+                            <button
+                              type="button"
+                              className="icon-button delete-icon-button"
+                              onClick={() =>
+                                handleDeleteBill(bill.id)
+                              }
+                              aria-label={`Delete ${bill.name}`}
+                            >
+                              <FiTrash2 />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })
+                ) : (
+                  <tr>
+                    <td
+                      className="table-empty-state"
+                      colSpan="8"
+                    >
+                      No bills match your filters.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        )}
 
         <div className="transaction-table-footer">
           Showing {filteredBills.length} of {bills.length} bills
@@ -465,7 +599,9 @@ function Bills() {
             role="dialog"
             aria-modal="true"
             aria-labelledby="bill-modal-title"
-            onMouseDown={(event) => event.stopPropagation()}
+            onMouseDown={(event) =>
+              event.stopPropagation()
+            }
           >
             <div className="modal-header">
               <div>
@@ -485,14 +621,20 @@ function Bills() {
                 type="button"
                 onClick={closeModal}
                 aria-label="Close bill form"
+                disabled={saving}
               >
                 <FiX />
               </button>
             </div>
 
-            <form className="transaction-form" onSubmit={handleSubmit}>
+            <form
+              className="transaction-form"
+              onSubmit={handleSubmit}
+            >
               <div className="form-field form-field-full">
-                <label htmlFor="bill-name">Bill name</label>
+                <label htmlFor="bill-name">
+                  Bill name
+                </label>
 
                 <input
                   id="bill-name"
@@ -502,11 +644,14 @@ function Bills() {
                   value={form.name}
                   onChange={handleInputChange}
                   autoFocus
+                  disabled={saving}
                 />
               </div>
 
               <div className="form-field">
-                <label htmlFor="bill-amount">Amount</label>
+                <label htmlFor="bill-amount">
+                  Amount
+                </label>
 
                 <div className="currency-input">
                   <span>$</span>
@@ -520,12 +665,15 @@ function Bills() {
                     placeholder="0.00"
                     value={form.amount}
                     onChange={handleInputChange}
+                    disabled={saving}
                   />
                 </div>
               </div>
 
               <div className="form-field">
-                <label htmlFor="bill-due-date">Due date</label>
+                <label htmlFor="bill-due-date">
+                  Due date
+                </label>
 
                 <input
                   id="bill-due-date"
@@ -533,20 +681,27 @@ function Bills() {
                   type="date"
                   value={form.dueDate}
                   onChange={handleInputChange}
+                  disabled={saving}
                 />
               </div>
 
               <div className="form-field">
-                <label htmlFor="bill-category">Category</label>
+                <label htmlFor="bill-category">
+                  Category
+                </label>
 
                 <select
                   id="bill-category"
                   name="category"
                   value={form.category}
                   onChange={handleInputChange}
+                  disabled={saving}
                 >
                   {categories.map((category) => (
-                    <option key={category} value={category}>
+                    <option
+                      key={category}
+                      value={category}
+                    >
                       {category}
                     </option>
                   ))}
@@ -563,9 +718,13 @@ function Bills() {
                   name="frequency"
                   value={form.frequency}
                   onChange={handleInputChange}
+                  disabled={saving}
                 >
                   {billFrequencies.map((frequency) => (
-                    <option key={frequency} value={frequency}>
+                    <option
+                      key={frequency}
+                      value={frequency}
+                    >
                       {frequency}
                     </option>
                   ))}
@@ -577,6 +736,7 @@ function Bills() {
                   <label className="bill-toggle-card">
                     <div>
                       <strong>Autopay</strong>
+
                       <span>
                         This bill is paid automatically.
                       </span>
@@ -587,12 +747,14 @@ function Bills() {
                       type="checkbox"
                       checked={form.autopay}
                       onChange={handleInputChange}
+                      disabled={saving}
                     />
                   </label>
 
                   <label className="bill-toggle-card">
                     <div>
                       <strong>Paid</strong>
+
                       <span>
                         Mark this bill as already paid.
                       </span>
@@ -603,13 +765,16 @@ function Bills() {
                       type="checkbox"
                       checked={form.paid}
                       onChange={handleInputChange}
+                      disabled={saving}
                     />
                   </label>
                 </div>
               </div>
 
               <div className="form-field form-field-full">
-                <label htmlFor="bill-notes">Notes</label>
+                <label htmlFor="bill-notes">
+                  Notes
+                </label>
 
                 <textarea
                   id="bill-notes"
@@ -618,6 +783,7 @@ function Bills() {
                   placeholder="Optional payment details"
                   value={form.notes}
                   onChange={handleInputChange}
+                  disabled={saving}
                 />
               </div>
 
@@ -626,12 +792,21 @@ function Bills() {
                   className="secondary-button modal-cancel-button"
                   type="button"
                   onClick={closeModal}
+                  disabled={saving}
                 >
                   Cancel
                 </button>
 
-                <button className="primary-button" type="submit">
-                  {editingId ? "Save changes" : "Save bill"}
+                <button
+                  className="primary-button"
+                  type="submit"
+                  disabled={saving}
+                >
+                  {saving
+                    ? "Saving..."
+                    : editingId
+                      ? "Save changes"
+                      : "Save bill"}
                 </button>
               </div>
             </form>

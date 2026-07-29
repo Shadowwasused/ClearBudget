@@ -1,24 +1,36 @@
 import { useState } from "react";
-import Transactions from "./pages/Transactions";
-import Dashboard from "./pages/Dashboard";
-import Bills from "./pages/Bills";
-import Budget from "./pages/Budget";
-import Goals from "./pages/Goals";
-import Reports from "./pages/Reports";
-import Calendar from "./pages/Calendar";
-import { supabase } from "./lib/supabase";
-import { NavLink, Navigate, Route, Routes } from "react-router-dom";
+import {
+  NavLink,
+  Navigate,
+  Route,
+  Routes,
+} from "react-router-dom";
+
 import {
   FiBarChart2,
   FiCalendar,
   FiDollarSign,
   FiHome,
+  FiLogOut,
   FiMenu,
   FiPieChart,
   FiSettings,
-  FiX,
   FiTarget,
+  FiX,
 } from "react-icons/fi";
+
+import { useAuth } from "./context/AuthContext";
+
+import Login from "./pages/auth/Login";
+import Signup from "./pages/auth/Signup";
+
+import Dashboard from "./pages/Dashboard";
+import Transactions from "./pages/Transactions";
+import Bills from "./pages/Bills";
+import Budget from "./pages/Budget";
+import Goals from "./pages/Goals";
+import Reports from "./pages/Reports";
+import Calendar from "./pages/Calendar";
 
 const navigationItems = [
   {
@@ -42,9 +54,19 @@ const navigationItems = [
     icon: FiPieChart,
   },
   {
+    name: "Savings Goals",
+    path: "/goals",
+    icon: FiTarget,
+  },
+  {
     name: "Reports",
     path: "/reports",
     icon: FiBarChart2,
+  },
+  {
+    name: "Calendar",
+    path: "/calendar",
+    icon: FiCalendar,
   },
   {
     name: "Settings",
@@ -53,58 +75,88 @@ const navigationItems = [
   },
 ];
 
-
-function Settings() {
-  return (
-    <PagePlaceholder
-      eyebrow="Application preferences"
-      title="Settings"
-      description="Manage your profile, accounts, categories, notifications, and report options."
-      buttonText="Save settings"
-    />
-  );
-}
-
-function PagePlaceholder({ eyebrow, title, description, buttonText }) {
-  return (
-    <div className="page-content">
-      <div className="page-heading">
-        <div>
-          <p className="page-eyebrow">{eyebrow}</p>
-          <h1>{title}</h1>
-          <p className="page-description">{description}</p>
-        </div>
-
-        <button className="primary-button" type="button">
-          {buttonText}
-        </button>
-      </div>
-
-      <section className="content-card empty-state">
-        <div className="empty-state-icon">
-          <FiDollarSign />
-        </div>
-
-        <h2>{title} is ready to build</h2>
-        <p>
-          The navigation is connected. We will build the full {title.toLowerCase()}{" "}
-          feature next.
-        </p>
-      </section>
-    </div>
-  );
-}
-
-
 function App() {
+  const { user, loading } = useAuth();
+
+  if (loading) {
+    return (
+      <div className="auth-page">
+        <div className="auth-card">
+          <h1>ClearBudget</h1>
+          <p>Loading your account...</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <Routes>
+      <Route
+        path="/login"
+        element={
+          user ? (
+            <Navigate to="/dashboard" replace />
+          ) : (
+            <Login />
+          )
+        }
+      />
+
+      <Route
+        path="/signup"
+        element={
+          user ? (
+            <Navigate to="/dashboard" replace />
+          ) : (
+            <Signup />
+          )
+        }
+      />
+
+      <Route
+        path="/*"
+        element={
+          user ? (
+            <ProtectedApp />
+          ) : (
+            <Navigate to="/login" replace />
+          )
+        }
+      />
+    </Routes>
+  );
+}
+
+function ProtectedApp() {
+  const { user, signOut } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  console.log("Supabase connected:", supabase);
+  const [signingOut, setSigningOut] = useState(false);
+
+  const fullName =
+    user?.user_metadata?.full_name?.trim() || "My Account";
+
+  const email = user?.email || "Personal workspace";
+
+  const profileInitial =
+    fullName !== "My Account"
+      ? fullName.charAt(0).toUpperCase()
+      : email.charAt(0).toUpperCase();
 
   function closeSidebar() {
     setSidebarOpen(false);
   }
 
+  async function handleSignOut() {
+    setSigningOut(true);
 
+    try {
+      await signOut();
+    } catch (error) {
+      console.error("Unable to sign out:", error);
+      alert("You could not be signed out. Please try again.");
+      setSigningOut(false);
+    }
+  }
 
   return (
     <div className="app-shell">
@@ -126,7 +178,11 @@ function App() {
         />
       )}
 
-      <aside className={`sidebar ${sidebarOpen ? "sidebar-open" : ""}`}>
+      <aside
+        className={`sidebar ${
+          sidebarOpen ? "sidebar-open" : ""
+        }`}
+      >
         <div className="sidebar-header">
           <div className="brand">
             <div className="brand-icon">
@@ -159,7 +215,9 @@ function App() {
                 to={item.path}
                 onClick={closeSidebar}
                 className={({ isActive }) =>
-                  isActive ? "nav-link nav-link-active" : "nav-link"
+                  isActive
+                    ? "nav-link nav-link-active"
+                    : "nav-link"
                 }
               >
                 <Icon />
@@ -168,49 +226,139 @@ function App() {
             );
           })}
         </nav>
-       <NavLink
-  to="/goals"
-  className={({ isActive }) =>
-    isActive ? "nav-link active" : "nav-link"
-  }
->
-  <FiTarget />
-  <span>Savings Goals</span>
-</NavLink>
-<NavLink
-  to="/calendar"
-  className={({ isActive }) =>
-    isActive ? "nav-link active" : "nav-link"
-  }
->
-  <FiCalendar />
-  <span>Calendar</span>
-</NavLink>
 
         <div className="sidebar-footer">
-          <div className="profile-avatar">J</div>
-
-          <div>
-            <strong>My Account</strong>
-            <span>Personal workspace</span>
+          <div className="profile-avatar">
+            {profileInitial}
           </div>
+
+          <div className="sidebar-profile-details">
+            <strong>{fullName}</strong>
+            <span>{email}</span>
+          </div>
+
+          <button
+            className="icon-button"
+            type="button"
+            onClick={handleSignOut}
+            disabled={signingOut}
+            aria-label="Sign out"
+            title="Sign out"
+          >
+            <FiLogOut />
+          </button>
         </div>
       </aside>
 
       <main className="main-content">
         <Routes>
-          <Route path="/" element={<Navigate to="/dashboard" replace />} />
-          <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/transactions" element={<Transactions />} />
-          <Route path="/bills" element={<Bills />} />
-          <Route path="/budget" element={<Budget />} />
-          <Route path="/goals" element={<Goals />} />
-          <Route path="/reports" element={<Reports />} />
-          <Route path="/settings" element={<Settings />} />
-          <Route path="*" element={<Navigate to="/dashboard" replace />} />
-          <Route path="/calendar" element={<Calendar />} />
+          <Route
+            path="/"
+            element={
+              <Navigate to="/dashboard" replace />
+            }
+          />
+
+          <Route
+            path="/dashboard"
+            element={<Dashboard />}
+          />
+
+          <Route
+            path="/transactions"
+            element={<Transactions />}
+          />
+
+          <Route
+            path="/bills"
+            element={<Bills />}
+          />
+
+          <Route
+            path="/budget"
+            element={<Budget />}
+          />
+
+          <Route
+            path="/goals"
+            element={<Goals />}
+          />
+
+          <Route
+            path="/reports"
+            element={<Reports />}
+          />
+
+          <Route
+            path="/calendar"
+            element={<Calendar />}
+          />
+
+          <Route
+            path="/settings"
+            element={<Settings />}
+          />
+
+          <Route
+            path="*"
+            element={
+              <Navigate to="/dashboard" replace />
+            }
+          />
         </Routes>
       </main>
+    </div>
+  );
+}
+
+function Settings() {
+  return (
+    <PagePlaceholder
+      eyebrow="Application preferences"
+      title="Settings"
+      description="Manage your profile, accounts, categories, notifications, and report options."
+      buttonText="Save settings"
+    />
+  );
+}
+
+function PagePlaceholder({
+  eyebrow,
+  title,
+  description,
+  buttonText,
+}) {
+  return (
+    <div className="page-content">
+      <div className="page-heading">
+        <div>
+          <p className="page-eyebrow">{eyebrow}</p>
+          <h1>{title}</h1>
+          <p className="page-description">
+            {description}
+          </p>
+        </div>
+
+        <button
+          className="primary-button"
+          type="button"
+        >
+          {buttonText}
+        </button>
+      </div>
+
+      <section className="content-card empty-state">
+        <div className="empty-state-icon">
+          <FiDollarSign />
+        </div>
+
+        <h2>{title} is ready to build</h2>
+
+        <p>
+          The navigation is connected. We will build the
+          full {title.toLowerCase()} feature next.
+        </p>
+      </section>
     </div>
   );
 }
