@@ -13,9 +13,15 @@ import {
   categories,
   formatCurrency,
   formatTransactionDate,
-  loadTransactions,
   saveTransactions,
 } from "../lib/transactions";
+
+import {
+  createTransaction,
+  deleteTransaction as deleteTransactionFromSupabase,
+  fetchTransactions,
+  updateTransaction,
+} from "../lib/transactionsApi";
 
 const defaultForm = {
   description: "",
@@ -28,30 +34,96 @@ const defaultForm = {
 };
 
 function Transactions() {
- const [transactions, setTransactions] = useState(loadTransactions);
-
+  const [transactions, setTransactions] = useState([]);
   const [form, setForm] = useState(defaultForm);
   const [editingId, setEditingId] = useState(null);
   const [modalOpen, setModalOpen] = useState(false);
 
   const [search, setSearch] = useState("");
   const [accountFilter, setAccountFilter] = useState("all");
-  const [categoryFilter, setCategoryFilter] = useState("all");
+  const [categoryFilter, setCategoryFilter] =
+    useState("all");
   const [typeFilter, setTypeFilter] = useState("all");
 
- useEffect(() => {
-  saveTransactions(transactions);
-}, [transactions]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [deletingId, setDeletingId] = useState(null);
+  const [loadError, setLoadError] = useState("");
+
+  useEffect(() => {
+    let active = true;
+
+    async function loadSupabaseTransactions() {
+      try {
+        setLoading(true);
+        setLoadError("");
+
+        const data = await fetchTransactions();
+
+        if (!active) {
+          return;
+        }
+
+        setTransactions(data);
+
+        // Temporary bridge for pages that still use localStorage.
+        saveTransactions(data);
+      } catch (error) {
+        console.error(
+          "Unable to load Supabase transactions:",
+          error,
+        );
+
+        if (active) {
+          setLoadError(
+            "Transactions could not be loaded. Check your Supabase connection.",
+          );
+        }
+      } finally {
+        if (active) {
+          setLoading(false);
+        }
+      }
+    }
+
+    loadSupabaseTransactions();
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (loading) {
+      return;
+    }
+
+    // Keeps the current Dashboard, Reports, Calendar,
+    // and Budget pages synchronized during migration.
+    saveTransactions(transactions);
+  }, [transactions, loading]);
 
   const filteredTransactions = useMemo(() => {
     return [...transactions]
       .filter((transaction) => {
-        const searchText = search.toLowerCase();
+        const searchText = search.trim().toLowerCase();
+
+        const description = String(
+          transaction.description || "",
+        ).toLowerCase();
+
+        const category = String(
+          transaction.category || "",
+        ).toLowerCase();
+
+        const account = String(
+          transaction.account || "",
+        ).toLowerCase();
 
         const matchesSearch =
-          transaction.description.toLowerCase().includes(searchText) ||
-          transaction.category.toLowerCase().includes(searchText) ||
-          transaction.account.toLowerCase().includes(searchText);
+          description.includes(searchText) ||
+          category.includes(searchText) ||
+          account.includes(searchText);
 
         const matchesAccount =
           accountFilter === "all" ||
@@ -72,7 +144,10 @@ function Transactions() {
           matchesType
         );
       })
-      .sort((a, b) => new Date(b.date) - new Date(a.date));
+      .sort(
+        (first, second) =>
+          new Date(second.date) - new Date(first.date),
+      );
   }, [
     transactions,
     search,
@@ -82,19 +157,18 @@ function Transactions() {
   ]);
 
   const totals = useMemo(
-  () => calculateTransactionTotals(transactions),
-  [transactions],
-);
-
-    const expenses = transactions
-      .filter((transaction) => transaction.type === "expense")
-      .reduce((total, transaction) => total + transaction.amount, 0);
-
-  
+    () => calculateTransactionTotals(transactions),
+    [transactions],
+  );
 
   function openAddModal() {
     setEditingId(null);
-    setForm(defaultForm);
+
+    setForm({
+      ...defaultForm,
+      date: new Date().toISOString().slice(0, 10),
+    });
+
     setModalOpen(true);
   }
 
@@ -102,12 +176,12 @@ function Transactions() {
     setEditingId(transaction.id);
 
     setForm({
-      description: transaction.description,
-      amount: transaction.amount.toString(),
+      description: transaction.description || "",
+      amount: String(transaction.amount || ""),
       date: transaction.date,
-      category: transaction.category,
-      account: transaction.account,
-      type: transaction.type,
+      category: transaction.category || "Groceries",
+      account: transaction.account || "Checking",
+      type: transaction.type || "expense",
       notes: transaction.notes || "",
     });
 
@@ -115,6 +189,10 @@ function Transactions() {
   }
 
   function closeModal() {
+    if (saving) {
+      return;
+    }
+
     setModalOpen(false);
     setEditingId(null);
     setForm(defaultForm);
@@ -129,7 +207,7 @@ function Transactions() {
     }));
   }
 
-  function handleSubmit(event) {
+  async function handleSubmit(event) {
     event.preventDefault();
 
     const cleanedDescription = form.description.trim();
@@ -140,8 +218,13 @@ function Transactions() {
       return;
     }
 
-    if (!numericAmount || numericAmount <= 0) {
+    if (!Number.isFinite(numericAmount) || numericAmount <= 0) {
       alert("Please enter an amount greater than $0.");
+      return;
+    }
+
+    if (!form.date) {
+      alert("Please select a transaction date.");
       return;
     }
 
@@ -155,44 +238,81 @@ function Transactions() {
       notes: form.notes.trim(),
     };
 
-    if (editingId) {
-      setTransactions((currentTransactions) =>
-        currentTransactions.map((transaction) =>
-          transaction.id === editingId
-            ? {
-                ...transaction,
-                ...transactionData,
-              }
-            : transaction,
-        ),
-      );
-    } else {
-      setTransactions((currentTransactions) => [
-        {
-          id: crypto.randomUUID(),
-          ...transactionData,
-        },
-        ...currentTransactions,
-      ]);
-    }
+    try {
+      setSaving(true);
 
-    closeModal();
+      if (editingId) {
+        const savedTransaction = await updateTransaction(
+          editingId,
+          transactionData,
+        );
+
+        setTransactions((currentTransactions) =>
+          currentTransactions.map((transaction) =>
+            transaction.id === editingId
+              ? savedTransaction
+              : transaction,
+          ),
+        );
+      } else {
+        const savedTransaction =
+          await createTransaction(transactionData);
+
+        setTransactions((currentTransactions) => [
+          savedTransaction,
+          ...currentTransactions,
+        ]);
+      }
+
+      setModalOpen(false);
+      setEditingId(null);
+      setForm(defaultForm);
+    } catch (error) {
+      console.error("Unable to save transaction:", error);
+
+      alert(
+        "The transaction could not be saved. Check the browser console and your Supabase connection.",
+      );
+    } finally {
+      setSaving(false);
+    }
   }
 
-  function deleteTransaction(id) {
+  async function handleDeleteTransaction(id) {
+    const transaction = transactions.find(
+      (item) => item.id === id,
+    );
+
     const confirmed = window.confirm(
-      "Are you sure you want to delete this transaction?",
+      `Are you sure you want to delete ${
+        transaction?.description || "this transaction"
+      }?`,
     );
 
     if (!confirmed) {
       return;
     }
 
-    setTransactions((currentTransactions) =>
-      currentTransactions.filter(
-        (transaction) => transaction.id !== id,
-      ),
-    );
+    try {
+      setDeletingId(id);
+
+      await deleteTransactionFromSupabase(id);
+
+      setTransactions((currentTransactions) =>
+        currentTransactions.filter(
+          (currentTransaction) =>
+            currentTransaction.id !== id,
+        ),
+      );
+    } catch (error) {
+      console.error("Unable to delete transaction:", error);
+
+      alert(
+        "The transaction could not be deleted. Check the browser console and your Supabase connection.",
+      );
+    } finally {
+      setDeletingId(null);
+    }
   }
 
   function clearFilters() {
@@ -202,13 +322,14 @@ function Transactions() {
     setTypeFilter("all");
   }
 
-
   return (
     <div className="page-content">
       <div className="page-heading">
         <div>
           <p className="page-eyebrow">Money activity</p>
+
           <h1>Transactions</h1>
+
           <p className="page-description">
             Add, review, search, and categorize your income and
             purchases.
@@ -219,31 +340,43 @@ function Transactions() {
           className="primary-button button-with-icon"
           type="button"
           onClick={openAddModal}
+          disabled={loading}
         >
           <FiPlus />
           Add transaction
         </button>
       </div>
 
+      {loadError && (
+        <section className="content-card">
+          <p className="table-empty-state">{loadError}</p>
+        </section>
+      )}
+
       <div className="transaction-summary-grid">
         <section className="summary-card">
           <p>Total income</p>
+
           <h2 className="money-positive">
             {formatCurrency(totals.income)}
           </h2>
+
           <span>All recorded income</span>
         </section>
 
         <section className="summary-card">
           <p>Total expenses</p>
+
           <h2 className="money-negative">
             {formatCurrency(totals.expenses)}
           </h2>
+
           <span>All recorded expenses</span>
         </section>
 
         <section className="summary-card">
           <p>Net balance</p>
+
           <h2
             className={
               totals.balance >= 0
@@ -253,6 +386,7 @@ function Transactions() {
           >
             {formatCurrency(totals.balance)}
           </h2>
+
           <span>Income minus expenses</span>
         </section>
       </div>
@@ -266,7 +400,9 @@ function Transactions() {
               type="search"
               placeholder="Search transactions..."
               value={search}
-              onChange={(event) => setSearch(event.target.value)}
+              onChange={(event) =>
+                setSearch(event.target.value)
+              }
             />
           </div>
 
@@ -306,7 +442,10 @@ function Transactions() {
               setTypeFilter(event.target.value)
             }
           >
-            <option value="all">Income and expenses</option>
+            <option value="all">
+              Income and expenses
+            </option>
+
             <option value="income">Income only</option>
             <option value="expense">Expenses only</option>
           </select>
@@ -329,20 +468,41 @@ function Transactions() {
                 <th>Category</th>
                 <th>Account</th>
                 <th>Type</th>
-                <th className="table-amount-heading">Amount</th>
-                <th className="table-actions-heading">Actions</th>
+
+                <th className="table-amount-heading">
+                  Amount
+                </th>
+
+                <th className="table-actions-heading">
+                  Actions
+                </th>
               </tr>
             </thead>
 
             <tbody>
-              {filteredTransactions.length > 0 ? (
+              {loading ? (
+                <tr>
+                  <td
+                    className="table-empty-state"
+                    colSpan="7"
+                  >
+                    Loading transactions from Supabase...
+                  </td>
+                </tr>
+              ) : filteredTransactions.length > 0 ? (
                 filteredTransactions.map((transaction) => (
                   <tr key={transaction.id}>
-                    <td>{formatTransactionDate(transaction.date)}</td>
+                    <td>
+                      {formatTransactionDate(
+                        transaction.date,
+                      )}
+                    </td>
 
                     <td>
                       <div className="transaction-description-cell">
-                        <strong>{transaction.description}</strong>
+                        <strong>
+                          {transaction.description}
+                        </strong>
 
                         {transaction.notes && (
                           <span>{transaction.notes}</span>
@@ -352,11 +512,13 @@ function Transactions() {
 
                     <td>
                       <span className="category-pill">
-                        {transaction.category}
+                        {transaction.category || "Other"}
                       </span>
                     </td>
 
-                    <td>{transaction.account}</td>
+                    <td>
+                      {transaction.account || "Unassigned"}
+                    </td>
 
                     <td>
                       <span
@@ -377,7 +539,10 @@ function Transactions() {
                           : "money-negative"
                       }`}
                     >
-                      {transaction.type === "income" ? "+" : "-"}
+                      {transaction.type === "income"
+                        ? "+"
+                        : "-"}
+
                       {formatCurrency(transaction.amount)}
                     </td>
 
@@ -390,6 +555,9 @@ function Transactions() {
                             openEditModal(transaction)
                           }
                           aria-label={`Edit ${transaction.description}`}
+                          disabled={
+                            deletingId === transaction.id
+                          }
                         >
                           <FiEdit2 />
                         </button>
@@ -398,9 +566,14 @@ function Transactions() {
                           type="button"
                           className="icon-button delete-icon-button"
                           onClick={() =>
-                            deleteTransaction(transaction.id)
+                            handleDeleteTransaction(
+                              transaction.id,
+                            )
                           }
                           aria-label={`Delete ${transaction.description}`}
+                          disabled={
+                            deletingId === transaction.id
+                          }
                         >
                           <FiTrash2 />
                         </button>
@@ -439,7 +612,9 @@ function Transactions() {
             role="dialog"
             aria-modal="true"
             aria-labelledby="transaction-modal-title"
-            onMouseDown={(event) => event.stopPropagation()}
+            onMouseDown={(event) =>
+              event.stopPropagation()
+            }
           >
             <div className="modal-header">
               <div>
@@ -461,6 +636,7 @@ function Transactions() {
                 type="button"
                 onClick={closeModal}
                 aria-label="Close transaction form"
+                disabled={saving}
               >
                 <FiX />
               </button>
@@ -483,6 +659,7 @@ function Transactions() {
                   value={form.description}
                   onChange={handleInputChange}
                   autoFocus
+                  disabled={saving}
                 />
               </div>
 
@@ -503,12 +680,15 @@ function Transactions() {
                     placeholder="0.00"
                     value={form.amount}
                     onChange={handleInputChange}
+                    disabled={saving}
                   />
                 </div>
               </div>
 
               <div className="form-field">
-                <label htmlFor="transaction-date">Date</label>
+                <label htmlFor="transaction-date">
+                  Date
+                </label>
 
                 <input
                   id="transaction-date"
@@ -516,6 +696,7 @@ function Transactions() {
                   type="date"
                   value={form.date}
                   onChange={handleInputChange}
+                  disabled={saving}
                 />
               </div>
 
@@ -529,9 +710,13 @@ function Transactions() {
                   name="category"
                   value={form.category}
                   onChange={handleInputChange}
+                  disabled={saving}
                 >
                   {categories.map((category) => (
-                    <option key={category} value={category}>
+                    <option
+                      key={category}
+                      value={category}
+                    >
                       {category}
                     </option>
                   ))}
@@ -548,6 +733,7 @@ function Transactions() {
                   name="account"
                   value={form.account}
                   onChange={handleInputChange}
+                  disabled={saving}
                 >
                   {accounts.map((account) => (
                     <option key={account} value={account}>
@@ -574,6 +760,7 @@ function Transactions() {
                       value="expense"
                       checked={form.type === "expense"}
                       onChange={handleInputChange}
+                      disabled={saving}
                     />
 
                     Expense
@@ -592,6 +779,7 @@ function Transactions() {
                       value="income"
                       checked={form.type === "income"}
                       onChange={handleInputChange}
+                      disabled={saving}
                     />
 
                     Income
@@ -611,6 +799,7 @@ function Transactions() {
                   placeholder="Optional transaction details"
                   value={form.notes}
                   onChange={handleInputChange}
+                  disabled={saving}
                 />
               </div>
 
@@ -619,6 +808,7 @@ function Transactions() {
                   className="secondary-button modal-cancel-button"
                   type="button"
                   onClick={closeModal}
+                  disabled={saving}
                 >
                   Cancel
                 </button>
@@ -626,10 +816,13 @@ function Transactions() {
                 <button
                   className="primary-button"
                   type="submit"
+                  disabled={saving}
                 >
-                  {editingId
-                    ? "Save changes"
-                    : "Save transaction"}
+                  {saving
+                    ? "Saving..."
+                    : editingId
+                      ? "Save changes"
+                      : "Save transaction"}
                 </button>
               </div>
             </form>

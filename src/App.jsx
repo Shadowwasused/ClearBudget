@@ -6,6 +6,7 @@ import Budget from "./pages/Budget";
 import Goals from "./pages/Goals";
 import Reports from "./pages/Reports";
 import Calendar from "./pages/Calendar";
+import { supabase } from "./lib/supabase";
 import { NavLink, Navigate, Route, Routes } from "react-router-dom";
 import {
   FiBarChart2,
@@ -97,10 +98,13 @@ function PagePlaceholder({ eyebrow, title, description, buttonText }) {
 
 function App() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  console.log("Supabase connected:", supabase);
 
   function closeSidebar() {
     setSidebarOpen(false);
   }
+
+
 
   return (
     <div className="app-shell">
