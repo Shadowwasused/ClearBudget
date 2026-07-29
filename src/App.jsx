@@ -4,6 +4,7 @@ import Dashboard from "./pages/Dashboard";
 import Bills from "./pages/Bills";
 import Budget from "./pages/Budget";
 import Goals from "./pages/Goals";
+import Reports from "./pages/Reports";
 import { NavLink, Navigate, Route, Routes } from "react-router-dom";
 import {
   FiBarChart2,
@@ -50,17 +51,6 @@ const navigationItems = [
   },
 ];
 
-
-function Reports() {
-  return (
-    <PagePlaceholder
-      eyebrow="Financial analysis"
-      title="Reports"
-      description="Review income, spending, savings, and printable financial summaries."
-      buttonText="Create report"
-    />
-  );
-}
 
 function Settings() {
   return (
