@@ -23,11 +23,8 @@ export default function Login() {
     setMessage("");
 
     try {
-      const { error: signInError } = await signIn(email, password);
+      await signIn({ email, password });
 
-      if (signInError) {
-        throw signInError;
-      }
 
       navigate("/dashboard");
     } catch (err) {
@@ -47,11 +44,7 @@ export default function Login() {
     }
 
     try {
-      const { error: resetError } = await resetPassword(email);
-
-      if (resetError) {
-        throw resetError;
-      }
+     await resetPassword(email);
 
       setMessage("Password reset instructions were sent to your email.");
     } catch (err) {

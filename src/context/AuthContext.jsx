@@ -63,7 +63,7 @@ export function AuthProvider({ children }) {
       password,
       options: {
         data: {
-          full_name: fullName.trim(),
+          full_name: (fullName || "").trim(),
         },
       },
     });

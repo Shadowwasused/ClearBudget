@@ -40,11 +40,11 @@ export default function Signup() {
     setLoading(true);
 
     try {
-      const { data, error: signUpError } = await signUp(email, password);
-
-      if (signUpError) {
-        throw signUpError;
-      }
+      await signUp({
+  email,
+  password,
+  fullName: fullName || "",
+});
 
       if (data?.session) {
         navigate("/dashboard");
