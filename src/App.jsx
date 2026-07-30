@@ -31,6 +31,7 @@ import Budget from "./pages/Budget";
 import Goals from "./pages/Goals";
 import Reports from "./pages/Reports";
 import Calendar from "./pages/Calendar";
+import Settings from "./pages/Settings";
 
 const navigationItems = [
   {
@@ -293,6 +294,7 @@ function ProtectedApp() {
             path="/calendar"
             element={<Calendar />}
           />
+          
 
           <Route
             path="/settings"
@@ -311,56 +313,5 @@ function ProtectedApp() {
   );
 }
 
-function Settings() {
-  return (
-    <PagePlaceholder
-      eyebrow="Application preferences"
-      title="Settings"
-      description="Manage your profile, accounts, categories, notifications, and report options."
-      buttonText="Save settings"
-    />
-  );
-}
-
-function PagePlaceholder({
-  eyebrow,
-  title,
-  description,
-  buttonText,
-}) {
-  return (
-    <div className="page-content">
-      <div className="page-heading">
-        <div>
-          <p className="page-eyebrow">{eyebrow}</p>
-          <h1>{title}</h1>
-          <p className="page-description">
-            {description}
-          </p>
-        </div>
-
-        <button
-          className="primary-button"
-          type="button"
-        >
-          {buttonText}
-        </button>
-      </div>
-
-      <section className="content-card empty-state">
-        <div className="empty-state-icon">
-          <FiDollarSign />
-        </div>
-
-        <h2>{title} is ready to build</h2>
-
-        <p>
-          The navigation is connected. We will build the
-          full {title.toLowerCase()} feature next.
-        </p>
-      </section>
-    </div>
-  );
-}
 
 export default App;
