@@ -3,6 +3,7 @@ import { NavLink } from "react-router-dom";
 import {
   FiCalendar,
   FiCheckCircle,
+  FiCreditCard,
   FiDollarSign,
 } from "react-icons/fi";
 
@@ -12,41 +13,87 @@ import {
   formatTransactionDate,
   getMonthlyTotals,
   getRecentTransactions,
-  loadTransactions,
-  subscribeToTransactions,
 } from "../lib/transactions";
+import {
+  calculateBudgetDetails,
+  formatBudgetCurrency,
+} from "../lib/budgets";
+
+import { fetchBudgets } from "../lib/budgetsApi";
 
 import {
   formatBillCurrency,
   formatBillDate,
   getBillStatus,
   getUpcomingBills,
-  loadBills,
-  subscribeToBills,
 } from "../lib/bills";
 
+import { fetchTransactions } from "../lib/transactionsApi";
+import { fetchBills } from "../lib/billsApi";
+import { fetchAccounts } from "../lib/accountsApi";
+
 function Dashboard() {
-  const [transactions, setTransactions] = useState(loadTransactions);
-  const [bills, setBills] = useState(loadBills);
+  const [transactions, setTransactions] = useState([]);
+  const [bills, setBills] = useState([]);
+  const [accounts, setAccounts] = useState([]);
+const [budgets, setBudgets] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
 
   useEffect(() => {
-    const unsubscribeTransactions =
-      subscribeToTransactions(setTransactions);
+    let active = true;
 
-    const unsubscribeBills = subscribeToBills(setBills);
+    async function loadDashboardData() {
+      try {
+        setLoading(true);
+        setLoadError("");
+
+        const [
+  transactionData,
+  billData,
+  accountData,
+  budgetData,
+] = await Promise.all([
+  fetchTransactions(),
+  fetchBills(),
+  fetchAccounts(),
+  fetchBudgets(),
+]);
+
+        if (!active) {
+          return;
+        }
+
+        setTransactions(transactionData || []);
+        setBills(billData || []);
+        setAccounts(accountData || []);
+        setBudgets(budgetData || []);
+      } catch (error) {
+        console.error(
+          "Unable to load dashboard data:",
+          error,
+        );
+
+        if (active) {
+          setLoadError(
+            "The dashboard could not be loaded. Check your Supabase connection.",
+          );
+        }
+      } finally {
+        if (active) {
+          setLoading(false);
+        }
+      }
+    }
+
+    loadDashboardData();
 
     return () => {
-      unsubscribeTransactions();
-      unsubscribeBills();
+      active = false;
     };
   }, []);
 
   const currentDate = useMemo(() => new Date(), []);
-
-  const allTimeTotals = useMemo(
-    () => calculateTransactionTotals(transactions),
-    [transactions],
-  );
 
   const monthlyTotals = useMemo(
     () => getMonthlyTotals(transactions, currentDate),
@@ -63,17 +110,71 @@ function Dashboard() {
     [bills],
   );
 
+  const activeAccounts = useMemo(
+    () =>
+      accounts.filter(
+        (account) => !account.is_archived,
+      ),
+    [accounts],
+  );
+
+  const netWorth = useMemo(() => {
+    return activeAccounts.reduce(
+      (total, account) =>
+        total + Number(account.balance || 0),
+      0,
+    );
+  }, [activeAccounts]);
+
+  const cashAvailable = useMemo(() => {
+    const cashAccountTypes = [
+      "checking",
+      "savings",
+      "cash",
+    ];
+
+    return activeAccounts
+      .filter((account) =>
+        cashAccountTypes.includes(
+          String(account.account_type || "")
+            .trim()
+            .toLowerCase(),
+        ),
+      )
+      .reduce(
+        (total, account) =>
+          total + Number(account.balance || 0),
+        0,
+      );
+  }, [activeAccounts]);
+  const budgetDetails = useMemo(() => {
+  return budgets
+    .map((budget) =>
+      calculateBudgetDetails(
+        budget,
+        transactions,
+        currentDate,
+      ),
+    )
+    .sort(
+      (firstBudget, secondBudget) =>
+        secondBudget.percentage -
+        firstBudget.percentage,
+    );
+}, [budgets, transactions, currentDate]);
+
   const unpaidBillTotal = useMemo(() => {
     return bills
       .filter((bill) => !bill.paid)
       .reduce(
-        (total, bill) => total + Number(bill.amount || 0),
+        (total, bill) =>
+          total + Number(bill.amount || 0),
         0,
       );
   }, [bills]);
 
-  const weeklySpending = useMemo(() => {
-    const weeks = [0, 0, 0, 0];
+  const categorySpending = useMemo(() => {
+    const totalsByCategory = {};
 
     transactions.forEach((transaction) => {
       if (transaction.type !== "expense") {
@@ -87,53 +188,73 @@ function Dashboard() {
       const isCurrentMonth =
         transactionDate.getFullYear() ===
           currentDate.getFullYear() &&
-        transactionDate.getMonth() === currentDate.getMonth();
+        transactionDate.getMonth() ===
+          currentDate.getMonth();
 
       if (!isCurrentMonth) {
         return;
       }
 
-      const dayOfMonth = transactionDate.getDate();
+      const category =
+        transaction.category || "Other";
 
-      const weekIndex = Math.min(
-        Math.floor((dayOfMonth - 1) / 7),
-        3,
-      );
-
-      weeks[weekIndex] += Number(transaction.amount || 0);
+      totalsByCategory[category] =
+        (totalsByCategory[category] || 0) +
+        Number(transaction.amount || 0);
     });
 
-    return weeks;
+    return Object.entries(totalsByCategory)
+      .map(([category, amount]) => ({
+        category,
+        amount,
+      }))
+      .sort(
+        (first, second) =>
+          second.amount - first.amount,
+      )
+      .slice(0, 6);
   }, [transactions, currentDate]);
 
-  const highestWeeklySpending = Math.max(
-    ...weeklySpending,
+  const highestCategorySpending = Math.max(
+    ...categorySpending.map(
+      (category) => category.amount,
+    ),
     1,
   );
 
-  const savingsRate =
-    monthlyTotals.income > 0
-      ? Math.round(
-          (monthlyTotals.savings / monthlyTotals.income) * 100,
-        )
-      : 0;
+  const monthName = new Intl.DateTimeFormat(
+    "en-US",
+    {
+      month: "long",
+      year: "numeric",
+    },
+  ).format(currentDate);
 
-  const monthName = new Intl.DateTimeFormat("en-US", {
-    month: "long",
-    year: "numeric",
-  }).format(currentDate);
+  if (loading) {
+    return (
+      <div className="page-content">
+        <section className="content-card">
+          <p className="table-empty-state">
+            Loading your financial dashboard...
+          </p>
+        </section>
+      </div>
+    );
+  }
 
   return (
     <div className="page-content">
       <div className="page-heading">
         <div>
-          <p className="page-eyebrow">Financial overview</p>
+          <p className="page-eyebrow">
+            Financial overview
+          </p>
 
           <h1>Dashboard</h1>
 
           <p className="page-description">
-            Review your balance, monthly spending, bills, income, and
-            recent activity.
+            Review your accounts, monthly activity,
+            upcoming bills, and recent transactions.
           </p>
         </div>
 
@@ -145,50 +266,105 @@ function Dashboard() {
         </NavLink>
       </div>
 
+      {loadError && (
+        <section className="content-card">
+          <p className="table-empty-state">
+            {loadError}
+          </p>
+        </section>
+      )}
+
       <div className="summary-grid">
         <SummaryCard
-          title="Total balance"
-          value={formatCurrency(allTimeTotals.balance)}
-          change="Income minus expenses"
+          title="Net worth"
+          value={formatCurrency(netWorth)}
+          change={`${activeAccounts.length} active ${
+            activeAccounts.length === 1
+              ? "account"
+              : "accounts"
+          }`}
           valueClass={
-            allTimeTotals.balance >= 0
+            netWorth >= 0
               ? "money-positive"
               : "money-negative"
           }
         />
 
         <SummaryCard
-          title="Monthly income"
+          title="Cash available"
+          value={formatCurrency(cashAvailable)}
+          change="Checking, savings, and cash"
+          valueClass={
+            cashAvailable >= 0
+              ? "money-positive"
+              : "money-negative"
+          }
+        />
+
+        <SummaryCard
+          title="Income this month"
           value={formatCurrency(monthlyTotals.income)}
           change={monthName}
           valueClass="money-positive"
         />
 
         <SummaryCard
-          title="Monthly spending"
-          value={formatCurrency(monthlyTotals.expenses)}
+          title="Expenses this month"
+          value={formatCurrency(
+            monthlyTotals.expenses,
+          )}
           change={monthName}
           valueClass="money-negative"
         />
-
-        <SummaryCard
-          title="Monthly savings"
-          value={formatCurrency(monthlyTotals.savings)}
-          change={`${savingsRate}% of monthly income`}
-          valueClass={
-            monthlyTotals.savings >= 0
-              ? "money-positive"
-              : "money-negative"
-          }
-        />
       </div>
+
+      <section className="content-card dashboard-accounts-card">
+        <div className="card-heading">
+          <div>
+            <p className="card-label">
+              Financial accounts
+            </p>
+
+            <h2>Your accounts</h2>
+          </div>
+
+          <NavLink className="text-link" to="/accounts">
+            Manage accounts
+          </NavLink>
+        </div>
+
+        {activeAccounts.length > 0 ? (
+          <div className="dashboard-account-grid">
+            {activeAccounts.map((account) => (
+              <DashboardAccountCard
+                key={account.id}
+                account={account}
+              />
+            ))}
+          </div>
+        ) : (
+          <div className="dashboard-empty-state">
+            <FiCreditCard />
+
+            <strong>No accounts added</strong>
+
+            <span>
+              Add an account to begin tracking your
+              net worth.
+            </span>
+          </div>
+        )}
+      </section>
 
       <div className="dashboard-grid">
         <section className="content-card spending-card">
           <div className="card-heading">
             <div>
-              <p className="card-label">Monthly activity</p>
-              <h2>Spending overview</h2>
+              <p className="card-label">
+                Monthly activity
+              </p>
+
+              <h2>Spending by category</h2>
             </div>
 
             <span className="dashboard-month-label">
@@ -196,40 +372,52 @@ function Dashboard() {
             </span>
           </div>
 
-          <div className="chart-placeholder">
-            {weeklySpending.map((amount, index) => {
-              const height =
-                amount > 0
-                  ? Math.max(
-                      (amount / highestWeeklySpending) * 100,
-                      8,
-                    )
-                  : 4;
+          {categorySpending.length > 0 ? (
+            <div className="category-spending-list">
+              {categorySpending.map((item) => {
+                const progress =
+                  (item.amount /
+                    highestCategorySpending) *
+                  100;
 
-              return (
-                <div
-                  key={`week-${index + 1}`}
-                  className="chart-bar live-chart-bar"
-                  style={{ height: `${height}%` }}
-                  title={`Week ${index + 1}: ${formatCurrency(
-                    amount,
-                  )}`}
-                />
-              );
-            })}
-          </div>
+                return (
+                  <div
+                    className="category-spending-item"
+                    key={item.category}
+                  >
+                    <div className="category-spending-heading">
+                      <span>{item.category}</span>
 
-          <div className="chart-labels">
-            <span>Week 1</span>
-            <span>Week 2</span>
-            <span>Week 3</span>
-            <span>Week 4</span>
-          </div>
+                      <strong>
+                        {formatCurrency(item.amount)}
+                      </strong>
+                    </div>
+
+                    <div className="category-spending-track">
+                      <div
+                        className="category-spending-fill"
+                        style={{
+                          width: `${progress}%`,
+                        }}
+                      />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="dashboard-empty-state">
+              No expenses have been recorded for this
+              month.
+            </div>
+          )}
 
           <div className="chart-total">
             Monthly expenses:{" "}
             <strong>
-              {formatCurrency(monthlyTotals.expenses)}
+              {formatCurrency(
+                monthlyTotals.expenses,
+              )}
             </strong>
           </div>
         </section>
@@ -237,7 +425,10 @@ function Dashboard() {
         <section className="content-card upcoming-bills-card">
           <div className="card-heading">
             <div>
-              <p className="card-label">Payment schedule</p>
+              <p className="card-label">
+                Payment schedule
+              </p>
+
               <h2>Upcoming bills</h2>
             </div>
 
@@ -248,13 +439,19 @@ function Dashboard() {
 
           <div className="upcoming-bills-total">
             <span>Total unpaid</span>
-            <strong>{formatBillCurrency(unpaidBillTotal)}</strong>
+
+            <strong>
+              {formatBillCurrency(unpaidBillTotal)}
+            </strong>
           </div>
 
           {upcomingBills.length > 0 ? (
             <div className="dashboard-bill-list">
               {upcomingBills.map((bill) => (
-                <DashboardBillItem key={bill.id} bill={bill} />
+                <DashboardBillItem
+                  key={bill.id}
+                  bill={bill}
+                />
               ))}
             </div>
           ) : (
@@ -268,27 +465,69 @@ function Dashboard() {
           )}
         </section>
       </div>
+<section className="content-card dashboard-budget-section">
+  <div className="card-heading">
+    <div>
+      <p className="card-label">
+        Monthly spending limits
+      </p>
 
+      <h2>Budget progress</h2>
+    </div>
+
+    <NavLink className="text-link" to="/budget">
+      Manage budgets
+    </NavLink>
+  </div>
+
+  {budgetDetails.length > 0 ? (
+    <div className="dashboard-budget-list">
+      {budgetDetails.map((budget) => (
+        <DashboardBudgetItem
+          key={budget.id}
+          budget={budget}
+        />
+      ))}
+    </div>
+  ) : (
+    <div className="dashboard-empty-state">
+      <strong>No budgets created</strong>
+
+      <span>
+        Add monthly category budgets to track your
+        spending progress.
+      </span>
+    </div>
+  )}
+</section>
       <section className="content-card">
         <div className="card-heading">
           <div>
-            <p className="card-label">Latest activity</p>
+            <p className="card-label">
+              Latest activity
+            </p>
+
             <h2>Recent transactions</h2>
           </div>
 
-          <NavLink className="text-link" to="/transactions">
+          <NavLink
+            className="text-link"
+            to="/transactions"
+          >
             View all
           </NavLink>
         </div>
 
         {recentTransactions.length > 0 ? (
           <div className="transaction-list">
-            {recentTransactions.map((transaction) => (
-              <TransactionItem
-                key={transaction.id}
-                transaction={transaction}
-              />
-            ))}
+            {recentTransactions.map(
+              (transaction) => (
+                <TransactionItem
+                  key={transaction.id}
+                  transaction={transaction}
+                />
+              ),
+            )}
           </div>
         ) : (
           <div className="dashboard-empty-state">
@@ -309,12 +548,120 @@ function SummaryCard({
   return (
     <section className="summary-card">
       <p>{title}</p>
+
       <h2 className={valueClass}>{value}</h2>
+
       <span>{change}</span>
     </section>
   );
 }
 
+function DashboardAccountCard({ account }) {
+  const accountType = String(
+    account.account_type || "Account",
+  );
+
+  const balance = Number(account.balance || 0);
+
+  return (
+    <article
+      className="dashboard-account-card"
+      style={{
+        "--account-accent":
+          account.color || "#4f8cff",
+      }}
+    >
+      <div className="dashboard-account-icon">
+        <FiCreditCard />
+      </div>
+
+      <div className="dashboard-account-details">
+        <span>{accountType}</span>
+
+        <strong>{account.name}</strong>
+      </div>
+
+      <div
+        className={
+          balance >= 0
+            ? "dashboard-account-balance money-positive"
+            : "dashboard-account-balance money-negative"
+        }
+      >
+        {formatCurrency(balance)}
+      </div>
+    </article>
+  );
+}
+function DashboardBudgetItem({ budget }) {
+  const visiblePercentage = Math.min(
+    Math.max(Number(budget.percentage || 0), 0),
+    100,
+  );
+
+  let statusLabel = "On track";
+  let statusClass = "dashboard-budget-good";
+
+  if (budget.isOverBudget) {
+    statusLabel = "Over budget";
+    statusClass = "dashboard-budget-over";
+  } else if (budget.percentage >= 80) {
+    statusLabel = "Almost reached";
+    statusClass = "dashboard-budget-warning";
+  }
+
+  return (
+    <article className="dashboard-budget-item">
+      <div className="dashboard-budget-heading">
+        <div>
+          <strong>{budget.category}</strong>
+
+          <span>
+            {formatBudgetCurrency(budget.spent)} of{" "}
+            {formatBudgetCurrency(budget.limit)}
+          </span>
+        </div>
+
+        <div className="dashboard-budget-status">
+          <strong>{budget.percentage}%</strong>
+
+          <span className={statusClass}>
+            {statusLabel}
+          </span>
+        </div>
+      </div>
+
+      <div className="dashboard-budget-track">
+        <div
+          className={`dashboard-budget-fill ${statusClass}`}
+          style={{
+            width: `${visiblePercentage}%`,
+          }}
+        />
+      </div>
+
+      <div className="dashboard-budget-footer">
+        <span>
+          {budget.remaining >= 0
+            ? "Remaining"
+            : "Over by"}
+        </span>
+
+        <strong
+          className={
+            budget.remaining >= 0
+              ? "money-positive"
+              : "money-negative"
+          }
+        >
+          {formatBudgetCurrency(
+            Math.abs(budget.remaining),
+          )}
+        </strong>
+      </div>
+    </article>
+  );
+}
 function DashboardBillItem({ bill }) {
   const status = getBillStatus(bill);
 
@@ -334,7 +681,9 @@ function DashboardBillItem({ bill }) {
       </div>
 
       <div className="dashboard-bill-side">
-        <strong>{formatBillCurrency(bill.amount)}</strong>
+        <strong>
+          {formatBillCurrency(bill.amount)}
+        </strong>
 
         <span
           className={`dashboard-bill-status ${status.className}`}
@@ -347,19 +696,27 @@ function DashboardBillItem({ bill }) {
 }
 
 function TransactionItem({ transaction }) {
-  const isIncome = transaction.type === "income";
+  const isIncome =
+    transaction.type === "income";
 
   return (
     <div className="transaction-item">
       <div className="transaction-icon">
-        {isIncome ? <FiDollarSign /> : <FiCalendar />}
+        {isIncome ? (
+          <FiDollarSign />
+        ) : (
+          <FiCalendar />
+        )}
       </div>
 
       <div className="transaction-details">
-        <strong>{transaction.description}</strong>
+        <strong>
+          {transaction.description}
+        </strong>
 
         <span>
-          {transaction.category} ·{" "}
+          {transaction.category || "Other"} ·{" "}
+          {transaction.account || "Unassigned"} ·{" "}
           {formatTransactionDate(transaction.date)}
         </span>
       </div>

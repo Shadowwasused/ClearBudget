@@ -8,7 +8,6 @@ import {
 } from "react-icons/fi";
 
 import {
-  accounts,
   calculateTransactionTotals,
   categories,
   formatCurrency,
@@ -22,13 +21,14 @@ import {
   fetchTransactions,
   updateTransaction,
 } from "../lib/transactionsApi";
+import { fetchAccounts } from "../lib/accountsApi";
 
 const defaultForm = {
   description: "",
   amount: "",
   date: new Date().toISOString().slice(0, 10),
   category: "Groceries",
-  account: "Checking",
+  account: "",
   type: "expense",
   notes: "",
 };
@@ -38,7 +38,8 @@ function Transactions() {
   const [form, setForm] = useState(defaultForm);
   const [editingId, setEditingId] = useState(null);
   const [modalOpen, setModalOpen] = useState(false);
-
+const [accountOptions, setAccountOptions] = useState([]);
+const [accountsLoading, setAccountsLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [accountFilter, setAccountFilter] = useState("all");
   const [categoryFilter, setCategoryFilter] =
@@ -49,7 +50,39 @@ function Transactions() {
   const [saving, setSaving] = useState(false);
   const [deletingId, setDeletingId] = useState(null);
   const [loadError, setLoadError] = useState("");
+useEffect(() => {
+  let active = true;
 
+  async function loadAccounts() {
+    try {
+      setAccountsLoading(true);
+
+      const data = await fetchAccounts();
+
+      if (!active) {
+        return;
+      }
+
+      const activeAccounts = (data || []).filter(
+        (account) => !account.is_archived,
+      );
+
+      setAccountOptions(activeAccounts);
+    } catch (error) {
+      console.error("Unable to load accounts:", error);
+    } finally {
+      if (active) {
+        setAccountsLoading(false);
+      }
+    }
+  }
+
+  loadAccounts();
+
+  return () => {
+    active = false;
+  };
+}, []);
   useEffect(() => {
     let active = true;
 
@@ -162,15 +195,16 @@ function Transactions() {
   );
 
   function openAddModal() {
-    setEditingId(null);
+  setEditingId(null);
 
-    setForm({
-      ...defaultForm,
-      date: new Date().toISOString().slice(0, 10),
-    });
+  setForm({
+    ...defaultForm,
+    date: new Date().toISOString().slice(0, 10),
+    account: accountOptions[0]?.name || "",
+  });
 
-    setModalOpen(true);
-  }
+  setModalOpen(true);
+}
 
   function openEditModal(transaction) {
     setEditingId(transaction.id);
@@ -180,7 +214,10 @@ function Transactions() {
       amount: String(transaction.amount || ""),
       date: transaction.date,
       category: transaction.category || "Groceries",
-      account: transaction.account || "Checking",
+      account:
+  transaction.account ||
+  accountOptions[0]?.name ||
+  "",
       type: transaction.type || "expense",
       notes: transaction.notes || "",
     });
@@ -227,6 +264,10 @@ function Transactions() {
       alert("Please select a transaction date.");
       return;
     }
+    if (!form.account) {
+  alert("Please select an account.");
+  return;
+}
 
     const transactionData = {
       description: cleanedDescription,
@@ -414,11 +455,11 @@ function Transactions() {
           >
             <option value="all">All accounts</option>
 
-            {accounts.map((account) => (
-              <option key={account} value={account}>
-                {account}
-              </option>
-            ))}
+            {accountOptions.map((account) => (
+  <option key={account.id} value={account.name}>
+    {account.name}
+  </option>
+))}
           </select>
 
           <select
@@ -729,17 +770,25 @@ function Transactions() {
                 </label>
 
                 <select
-                  id="transaction-account"
-                  name="account"
-                  value={form.account}
-                  onChange={handleInputChange}
-                  disabled={saving}
-                >
-                  {accounts.map((account) => (
-                    <option key={account} value={account}>
-                      {account}
-                    </option>
-                  ))}
+  id="transaction-account"
+  name="account"
+  value={form.account}
+  onChange={handleInputChange}
+  disabled={saving || accountsLoading}
+>
+                  {accountOptions.length === 0 ? (
+  <option value="">
+    {accountsLoading
+      ? "Loading accounts..."
+      : "No accounts available"}
+  </option>
+) : (
+  accountOptions.map((account) => (
+    <option key={account.id} value={account.name}>
+      {account.name}
+    </option>
+  ))
+)}
                 </select>
               </div>
 

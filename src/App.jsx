@@ -17,6 +17,7 @@ import {
   FiSettings,
   FiTarget,
   FiX,
+  FiCreditCard,
 } from "react-icons/fi";
 
 import { useAuth } from "./context/AuthContext";
@@ -32,6 +33,7 @@ import Goals from "./pages/Goals";
 import Reports from "./pages/Reports";
 import Calendar from "./pages/Calendar";
 import Settings from "./pages/Settings";
+import Accounts from "./pages/Accounts";
 
 const navigationItems = [
   {
@@ -39,6 +41,11 @@ const navigationItems = [
     path: "/dashboard",
     icon: FiHome,
   },
+  {
+  name: "Accounts",
+  path: "/accounts",
+  icon: FiCreditCard,
+},
   {
     name: "Transactions",
     path: "/transactions",
@@ -113,7 +120,6 @@ function App() {
           )
         }
       />
-
       <Route
         path="/*"
         element={
@@ -264,7 +270,10 @@ function ProtectedApp() {
             path="/dashboard"
             element={<Dashboard />}
           />
-
+        <Route
+  path="/accounts"
+  element={<Accounts />}
+/>
           <Route
             path="/transactions"
             element={<Transactions />}
