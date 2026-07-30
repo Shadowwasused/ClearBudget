@@ -342,30 +342,6 @@ async function handleContributionSubmit(event) {
   }
 }
 
-  function handleContributionSubmit(event) {
-    event.preventDefault();
-
-    const amount = Number(contributionAmount);
-
-    if (!amount || amount <= 0) {
-      alert("Please enter a contribution greater than $0.");
-      return;
-    }
-
-    setGoals((currentGoals) =>
-      currentGoals.map((goal) =>
-        goal.id === contributionGoal.id
-          ? {
-              ...goal,
-              currentAmount:
-                Number(goal.currentAmount || 0) + amount,
-            }
-          : goal,
-      ),
-    );
-
-    closeContributionModal();
-  }
 
   return (
     <div className="page-content">

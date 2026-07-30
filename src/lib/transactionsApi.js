@@ -4,6 +4,26 @@ function normalizeTransaction(transaction) {
   return {
     ...transaction,
     amount: Number(transaction.amount || 0),
+    accountId: transaction.account_id || null,
+    account: transaction.account || null,
+  };
+}
+
+function toDatabase(transaction) {
+  return {
+    description: transaction.description.trim(),
+    amount: Number(transaction.amount || 0),
+    type: transaction.type,
+    category: transaction.category || null,
+
+    // Permanent account relationship.
+    account_id: transaction.accountId || null,
+
+    // Keep the account name temporarily for existing UI.
+    account: transaction.account || null,
+
+    date: transaction.date,
+    notes: transaction.notes || null,
   };
 }
 
@@ -15,7 +35,11 @@ export async function fetchTransactions() {
     .order("created_at", { ascending: false });
 
   if (error) {
-    console.error("Unable to load transactions:", error);
+    console.error(
+      "Unable to load transactions:",
+      error,
+    );
+
     throw error;
   }
 
@@ -23,24 +47,18 @@ export async function fetchTransactions() {
 }
 
 export async function createTransaction(transaction) {
-  const newTransaction = {
-    description: transaction.description.trim(),
-    amount: Number(transaction.amount || 0),
-    type: transaction.type,
-    category: transaction.category || null,
-    account: transaction.account || null,
-    date: transaction.date,
-    notes: transaction.notes || null,
-  };
-
   const { data, error } = await supabase
     .from("transactions")
-    .insert(newTransaction)
+    .insert(toDatabase(transaction))
     .select()
     .single();
 
   if (error) {
-    console.error("Unable to create transaction:", error);
+    console.error(
+      "Unable to create transaction:",
+      error,
+    );
+
     throw error;
   }
 
@@ -48,25 +66,19 @@ export async function createTransaction(transaction) {
 }
 
 export async function updateTransaction(id, changes) {
-  const updatedTransaction = {
-    description: changes.description.trim(),
-    amount: Number(changes.amount || 0),
-    type: changes.type,
-    category: changes.category || null,
-    account: changes.account || null,
-    date: changes.date,
-    notes: changes.notes || null,
-  };
-
   const { data, error } = await supabase
     .from("transactions")
-    .update(updatedTransaction)
+    .update(toDatabase(changes))
     .eq("id", id)
     .select()
     .single();
 
   if (error) {
-    console.error("Unable to update transaction:", error);
+    console.error(
+      "Unable to update transaction:",
+      error,
+    );
+
     throw error;
   }
 
@@ -80,7 +92,11 @@ export async function deleteTransaction(id) {
     .eq("id", id);
 
   if (error) {
-    console.error("Unable to delete transaction:", error);
+    console.error(
+      "Unable to delete transaction:",
+      error,
+    );
+
     throw error;
   }
 

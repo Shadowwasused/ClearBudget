@@ -3,12 +3,26 @@ import { supabase } from "./supabase";
 const TABLE = "accounts";
 
 function normalizeAccount(account) {
+  const startingBalance = Number(
+    account.starting_balance ??
+      account.balance ??
+      0,
+  );
+
   return {
     id: account.id,
     userId: account.user_id,
     name: account.name,
     accountType: account.account_type,
-    balance: Number(account.balance || 0),
+
+    // New permanent opening balance.
+    startingBalance,
+
+    // Temporary compatibility property.
+    balance: Number(
+      account.balance ?? startingBalance,
+    ),
+
     color: account.color || "#2563eb",
     isArchived: account.is_archived ?? false,
     createdAt: account.created_at,
@@ -17,10 +31,21 @@ function normalizeAccount(account) {
 }
 
 function toDatabase(account) {
+  const startingBalance = Number(
+    account.startingBalance ??
+      account.balance ??
+      0,
+  );
+
   return {
     name: account.name.trim(),
     account_type: account.accountType,
-    balance: Number(account.balance || 0),
+    starting_balance: startingBalance,
+
+    // Keep synchronized temporarily while older screens
+    // may still read the balance column.
+    balance: startingBalance,
+
     color: account.color || "#2563eb",
     is_archived: account.isArchived ?? false,
     updated_at: new Date().toISOString(),
@@ -47,7 +72,7 @@ export async function fetchAccounts({
     throw error;
   }
 
-  return data.map(normalizeAccount);
+  return (data || []).map(normalizeAccount);
 }
 
 export async function createAccount(account) {
@@ -79,14 +104,22 @@ export async function updateAccount(id, account) {
   return normalizeAccount(data);
 }
 
-export async function updateAccountBalance(
+export async function updateStartingBalance(
   id,
-  balance,
+  startingBalance,
 ) {
+  const normalizedBalance = Number(
+    startingBalance || 0,
+  );
+
   const { data, error } = await supabase
     .from(TABLE)
     .update({
-      balance: Number(balance || 0),
+      starting_balance: normalizedBalance,
+
+      // Temporary compatibility field.
+      balance: normalizedBalance,
+
       updated_at: new Date().toISOString(),
     })
     .eq("id", id)

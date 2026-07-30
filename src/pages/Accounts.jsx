@@ -18,11 +18,12 @@ import {
   restoreAccount,
   updateAccount,
 } from "../lib/accountsApi";
+import { fetchTransactions } from "../lib/transactionsApi";
 
 const defaultAccountForm = {
   name: "",
   accountType: "checking",
-  balance: "",
+  startingBalance: "",
   color: "#2563eb",
 };
 
@@ -45,6 +46,7 @@ function formatCurrency(value) {
 
 function Accounts() {
   const [accounts, setAccounts] = useState([]);
+  const [transactions, setTransactions] = useState([]);
   const [accountForm, setAccountForm] = useState(
     defaultAccountForm,
   );
@@ -66,13 +68,17 @@ function Accounts() {
         setLoading(true);
         setErrorMessage("");
 
-        const data = await fetchAccounts({
-          includeArchived: true,
-        });
+        const [accountData, transactionData] = await Promise.all([
+  fetchAccounts({
+    includeArchived: true,
+  }),
+  fetchTransactions(),
+]);
 
-        if (active) {
-          setAccounts(data);
-        }
+if (active) {
+  setAccounts(accountData);
+  setTransactions(transactionData);
+}
       } catch (error) {
         console.error("Unable to load accounts:", error);
 
@@ -94,9 +100,38 @@ function Accounts() {
       active = false;
     };
   }, []);
+const accountsWithBalances = useMemo(() => {
+  return accounts.map((account) => {
+    const accountTransactions = transactions.filter(
+      (transaction) =>
+        transaction.accountId === account.id ||
+        (!transaction.accountId &&
+          transaction.account === account.name),
+    );
 
+    const transactionChange = accountTransactions.reduce(
+      (total, transaction) => {
+        const amount = Number(transaction.amount || 0);
+
+        return transaction.type === "income"
+          ? total + amount
+          : total - amount;
+      },
+      0,
+    );
+
+    const currentBalance =
+      Number(account.startingBalance || 0) +
+      transactionChange;
+
+    return {
+      ...account,
+      currentBalance,
+    };
+  });
+}, [accounts, transactions]);
   const visibleAccounts = useMemo(() => {
-    return accounts
+    return accountsWithBalances
       .filter((account) =>
         showArchived
           ? account.isArchived
@@ -105,10 +140,10 @@ function Accounts() {
       .sort((firstAccount, secondAccount) =>
         firstAccount.name.localeCompare(secondAccount.name),
       );
-  }, [accounts, showArchived]);
+  }, [accountsWithBalances, showArchived]);
 
   const totals = useMemo(() => {
-    const activeAccounts = accounts.filter(
+    const activeAccounts = accountsWithBalances.filter(
       (account) => !account.isArchived,
     );
 
@@ -120,7 +155,7 @@ function Accounts() {
       )
       .reduce(
         (total, account) =>
-          total + Number(account.balance || 0),
+          total + Number(account.currentBalance || 0),
         0,
       );
 
@@ -132,7 +167,7 @@ function Accounts() {
       )
       .reduce(
         (total, account) =>
-          total + Math.abs(Number(account.balance || 0)),
+          total + Math.abs(Number(account.currentBalance || 0)),
         0,
       );
 
@@ -142,7 +177,7 @@ function Accounts() {
       netWorth: assets - liabilities,
       activeCount: activeAccounts.length,
     };
-  }, [accounts]);
+  }, [accountsWithBalances]);
 
   function openAddModal() {
     setEditingId(null);
@@ -156,7 +191,7 @@ function Accounts() {
     setAccountForm({
       name: account.name,
       accountType: account.accountType,
-      balance: account.balance.toString(),
+      startingBalance: account.startingBalance.toString(),
       color: account.color || "#2563eb",
     });
 
@@ -186,14 +221,16 @@ function Accounts() {
     event.preventDefault();
 
     const name = accountForm.name.trim();
-    const balance = Number(accountForm.balance || 0);
+    const startingBalance = Number(
+  accountForm.startingBalance || 0,
+);
 
     if (!name) {
       alert("Please enter an account name.");
       return;
     }
 
-    if (!Number.isFinite(balance)) {
+    if (!Number.isFinite(startingBalance)) {
       alert("Please enter a valid account balance.");
       return;
     }
@@ -201,7 +238,7 @@ function Accounts() {
     const accountData = {
       name,
       accountType: accountForm.accountType,
-      balance,
+      startingBalance,
       color: accountForm.color,
       isArchived: false,
     };
@@ -544,12 +581,12 @@ function Accounts() {
 
                     <strong
                       className={
-                        account.balance >= 0
+                        account.currentBalance >= 0
                           ? "money-positive"
                           : "money-negative"
                       }
                     >
-                      {formatCurrency(account.balance)}
+                      {formatCurrency(account.currentBalance)}
                     </strong>
                   </div>
 
@@ -682,19 +719,19 @@ function Accounts() {
 
               <div className="form-field">
                 <label htmlFor="account-balance">
-                  Current balance
-                </label>
+  Starting balance
+</label>
 
                 <div className="currency-input">
                   <span>$</span>
 
                   <input
                     id="account-balance"
-                    name="balance"
+                    name="startingBalance"
                     type="number"
                     step="0.01"
                     placeholder="0.00"
-                    value={accountForm.balance}
+                    value={accountForm.startingBalance}
                     onChange={handleInputChange}
                   />
                 </div>

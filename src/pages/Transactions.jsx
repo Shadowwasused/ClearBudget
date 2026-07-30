@@ -29,6 +29,7 @@ const defaultForm = {
   date: new Date().toISOString().slice(0, 10),
   category: "Groceries",
   account: "",
+  accountId: "",
   type: "expense",
   notes: "",
 };
@@ -38,8 +39,8 @@ function Transactions() {
   const [form, setForm] = useState(defaultForm);
   const [editingId, setEditingId] = useState(null);
   const [modalOpen, setModalOpen] = useState(false);
-const [accountOptions, setAccountOptions] = useState([]);
-const [accountsLoading, setAccountsLoading] = useState(true);
+  const [accountOptions, setAccountOptions] = useState([]);
+  const [accountsLoading, setAccountsLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [accountFilter, setAccountFilter] = useState("all");
   const [categoryFilter, setCategoryFilter] =
@@ -195,16 +196,15 @@ useEffect(() => {
   );
 
   function openAddModal() {
-  setEditingId(null);
+    setEditingId(null);
 
-  setForm({
-    ...defaultForm,
-    date: new Date().toISOString().slice(0, 10),
-    account: accountOptions[0]?.name || "",
-  });
+    setForm({
+      ...defaultForm,
+      date: new Date().toISOString().slice(0, 10),
+    });
 
-  setModalOpen(true);
-}
+    setModalOpen(true);
+  }
 
   function openEditModal(transaction) {
     setEditingId(transaction.id);
@@ -214,10 +214,8 @@ useEffect(() => {
       amount: String(transaction.amount || ""),
       date: transaction.date,
       category: transaction.category || "Groceries",
-      account:
-  transaction.account ||
-  accountOptions[0]?.name ||
-  "",
+      account: transaction.account || "",
+      accountId: transaction.accountId || "",
       type: transaction.type || "expense",
       notes: transaction.notes || "",
     });
@@ -264,20 +262,28 @@ useEffect(() => {
       alert("Please select a transaction date.");
       return;
     }
-    if (!form.account) {
+
+    
+    const selectedAccount = accountOptions.find(
+      (account) =>
+        String(account.id) === String(form.accountId),
+    );
+
+if (!selectedAccount) {
   alert("Please select an account.");
   return;
 }
 
-    const transactionData = {
-      description: cleanedDescription,
-      amount: numericAmount,
-      date: form.date,
-      category: form.category,
-      account: form.account,
-      type: form.type,
-      notes: form.notes.trim(),
-    };
+const transactionData = {
+  description: cleanedDescription,
+  amount: numericAmount,
+  date: form.date,
+  category: form.category,
+  accountId: selectedAccount.id,
+  account: selectedAccount.name,
+  type: form.type,
+  notes: form.notes.trim(),
+};
 
     try {
       setSaving(true);
@@ -770,25 +776,36 @@ useEffect(() => {
                 </label>
 
                 <select
-  id="transaction-account"
-  name="account"
-  value={form.account}
-  onChange={handleInputChange}
-  disabled={saving || accountsLoading}
->
-                  {accountOptions.length === 0 ? (
-  <option value="">
-    {accountsLoading
-      ? "Loading accounts..."
-      : "No accounts available"}
-  </option>
-) : (
-  accountOptions.map((account) => (
-    <option key={account.id} value={account.name}>
-      {account.name}
-    </option>
-  ))
-)}
+                  id="transaction-account"
+                  name="accountId"
+                  value={form.accountId || ""}
+                  onChange={(event) => {
+                    const selectedId = event.target.value;
+
+                    const selectedAccount = accountOptions.find(
+                      (account) =>
+                        String(account.id) === String(selectedId),
+                    );
+
+                    setForm((currentForm) => ({
+                      ...currentForm,
+                      accountId: selectedId,
+                      account: selectedAccount?.name || "",
+                    }));
+                  }}
+                  disabled={saving || accountsLoading}
+                >
+                  <option value="">
+                    {accountsLoading
+                      ? "Loading accounts..."
+                      : "Select an account"}
+                  </option>
+
+                  {accountOptions.map((account) => (
+                    <option key={account.id} value={account.id}>
+                      {account.name}
+                    </option>
+                  ))}
                 </select>
               </div>
 
