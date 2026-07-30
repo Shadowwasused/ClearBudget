@@ -15,9 +15,16 @@ import {
   calculateGoalTotals,
   formatGoalCurrency,
   formatGoalDate,
-  loadGoals,
   saveGoals,
 } from "../lib/goals";
+
+import {
+  fetchGoals,
+  createGoal,
+  updateGoal,
+  deleteGoal as deleteGoalFromSupabase,
+  addContribution,
+} from "../lib/goalsApi";
 
 const defaultGoalForm = {
   name: "",
@@ -29,7 +36,12 @@ const defaultGoalForm = {
 };
 
 function Goals() {
-  const [goals, setGoals] = useState(loadGoals);
+  const [goals, setGoals] = useState([]);
+
+const [loading, setLoading] = useState(true);
+const [saving, setSaving] = useState(false);
+const [deletingId, setDeletingId] = useState(null);
+const [loadError, setLoadError] = useState("");
   const [goalForm, setGoalForm] = useState(defaultGoalForm);
   const [contributionAmount, setContributionAmount] =
     useState("");
@@ -45,9 +57,49 @@ function Goals() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
 
-  useEffect(() => {
-    saveGoals(goals);
-  }, [goals]);
+ useEffect(() => {
+  let active = true;
+
+  async function loadSupabaseGoals() {
+    try {
+      setLoading(true);
+      setLoadError("");
+
+      const data = await fetchGoals();
+
+      if (!active) return;
+
+      setGoals(data);
+
+      // Temporary bridge while the rest of the app
+      // still reads localStorage.
+      saveGoals(data);
+    } catch (error) {
+      console.error(error);
+
+      if (active) {
+        setLoadError(
+          "Unable to load goals from Supabase.",
+        );
+      }
+    } finally {
+      if (active) {
+        setLoading(false);
+      }
+    }
+  }
+
+  loadSupabaseGoals();
+
+  return () => {
+    active = false;
+  };
+}, []);
+useEffect(() => {
+  if (loading) return;
+
+  saveGoals(goals);
+}, [goals, loading]);
 
   const goalDetails = useMemo(
     () => goals.map(calculateGoalDetails),
@@ -121,93 +173,174 @@ function Goals() {
     }));
   }
 
-  function handleGoalSubmit(event) {
-    event.preventDefault();
+  async function handleGoalSubmit(event) {
+  event.preventDefault();
 
-    const name = goalForm.name.trim();
-    const targetAmount = Number(goalForm.targetAmount);
-    const currentAmount = Number(
-      goalForm.currentAmount || 0,
-    );
+  const name = goalForm.name.trim();
+  const targetAmount = Number(goalForm.targetAmount);
+  const currentAmount = Number(
+    goalForm.currentAmount || 0,
+  );
+  const monthlyContribution = Number(
+    goalForm.monthlyContribution || 0,
+  );
 
-    const monthlyContribution = Number(
-      goalForm.monthlyContribution || 0,
-    );
+  if (!name) {
+    alert("Please enter a goal name.");
+    return;
+  }
 
-    if (!name) {
-      alert("Please enter a goal name.");
-      return;
-    }
+  if (
+    !Number.isFinite(targetAmount) ||
+    targetAmount <= 0
+  ) {
+    alert("Please enter a target amount greater than $0.");
+    return;
+  }
 
-    if (!targetAmount || targetAmount <= 0) {
-      alert("Please enter a target amount greater than $0.");
-      return;
-    }
+  if (
+    !Number.isFinite(currentAmount) ||
+    !Number.isFinite(monthlyContribution) ||
+    currentAmount < 0 ||
+    monthlyContribution < 0
+  ) {
+    alert("Savings amounts cannot be negative.");
+    return;
+  }
 
-    if (currentAmount < 0 || monthlyContribution < 0) {
-      alert("Savings amounts cannot be negative.");
-      return;
-    }
+  const goalData = {
+    name,
+    targetAmount,
+    currentAmount,
+    targetDate: goalForm.targetDate,
+    monthlyContribution,
+    notes: goalForm.notes.trim(),
+  };
 
-    const goalData = {
-      name,
-      targetAmount,
-      currentAmount,
-      targetDate: goalForm.targetDate,
-      monthlyContribution,
-      notes: goalForm.notes.trim(),
-    };
+  try {
+    setSaving(true);
 
     if (editingId) {
+      const savedGoal = await updateGoal(
+        editingId,
+        goalData,
+      );
+
       setGoals((currentGoals) =>
         currentGoals.map((goal) =>
-          goal.id === editingId
-            ? {
-                ...goal,
-                ...goalData,
-              }
-            : goal,
+          goal.id === editingId ? savedGoal : goal,
         ),
       );
     } else {
+      const savedGoal = await createGoal(goalData);
+
       setGoals((currentGoals) => [
         ...currentGoals,
-        {
-          id: crypto.randomUUID(),
-          ...goalData,
-          createdAt: new Date().toISOString(),
-        },
+        savedGoal,
       ]);
     }
 
     closeGoalModal();
+  } catch (error) {
+    console.error("Unable to save goal:", error);
+
+    alert(
+      "The savings goal could not be saved. Check the browser console and Supabase connection.",
+    );
+  } finally {
+    setSaving(false);
+  }
+}
+
+async function handleDeleteGoal(id) {
+  const goal = goals.find((item) => item.id === id);
+
+  const confirmed = window.confirm(
+    `Are you sure you want to delete ${
+      goal?.name || "this savings goal"
+    }?`,
+  );
+
+  if (!confirmed) {
+    return;
   }
 
-  function deleteGoal(id) {
-    const confirmed = window.confirm(
-      "Are you sure you want to delete this savings goal?",
-    );
+  try {
+    setDeletingId(id);
 
-    if (!confirmed) {
-      return;
-    }
+    await deleteGoalFromSupabase(id);
 
     setGoals((currentGoals) =>
-      currentGoals.filter((goal) => goal.id !== id),
+      currentGoals.filter(
+        (currentGoal) => currentGoal.id !== id,
+      ),
     );
+  } catch (error) {
+    console.error("Unable to delete goal:", error);
+
+    alert(
+      "The savings goal could not be deleted. Check the browser console and Supabase connection.",
+    );
+  } finally {
+    setDeletingId(null);
+  }
+}
+
+function openContributionModal(goal) {
+  setContributionGoal(goal);
+  setContributionAmount("");
+  setContributionModalOpen(true);
+}
+
+function closeContributionModal() {
+  setContributionModalOpen(false);
+  setContributionGoal(null);
+  setContributionAmount("");
+}
+
+async function handleContributionSubmit(event) {
+  event.preventDefault();
+
+  const amount = Number(contributionAmount);
+
+  if (!Number.isFinite(amount) || amount <= 0) {
+    alert("Please enter a contribution greater than $0.");
+    return;
   }
 
-  function openContributionModal(goal) {
-    setContributionGoal(goal);
-    setContributionAmount("");
-    setContributionModalOpen(true);
+  if (!contributionGoal) {
+    return;
   }
 
-  function closeContributionModal() {
-    setContributionModalOpen(false);
-    setContributionGoal(null);
-    setContributionAmount("");
+  try {
+    setSaving(true);
+
+    const savedGoal = await addContribution(
+      contributionGoal.id,
+      amount,
+      contributionGoal.currentAmount,
+    );
+
+    setGoals((currentGoals) =>
+      currentGoals.map((goal) =>
+        goal.id === savedGoal.id ? savedGoal : goal,
+      ),
+    );
+
+    closeContributionModal();
+  } catch (error) {
+    console.error(
+      "Unable to add goal contribution:",
+      error,
+    );
+
+    alert(
+      "The contribution could not be saved. Check the browser console and Supabase connection.",
+    );
+  } finally {
+    setSaving(false);
   }
+}
 
   function handleContributionSubmit(event) {
     event.preventDefault();
@@ -322,7 +455,7 @@ function Goals() {
                 key={goal.id}
                 goal={goal}
                 onEdit={openEditModal}
-                onDelete={deleteGoal}
+                onDelete={handleDeleteGoal}
                 onContribute={openContributionModal}
               />
             ))}
