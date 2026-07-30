@@ -12,9 +12,15 @@ import {
   calculateBudgetDetails,
   calculateBudgetTotals,
   formatBudgetCurrency,
-  loadBudgets,
   saveBudgets,
 } from "../lib/budgets";
+
+import {
+  createBudget,
+  deleteBudget as deleteBudgetFromSupabase,
+  fetchBudgets,
+  updateBudget,
+} from "../lib/budgetsApi";
 
 import {
   categories,
@@ -28,7 +34,7 @@ const defaultForm = {
 };
 
 function Budget() {
-  const [budgets, setBudgets] = useState(loadBudgets);
+  const [budgets, setBudgets] = useState([]);
 
   const [transactions, setTransactions] = useState(
     loadTransactions,
@@ -39,11 +45,64 @@ function Budget() {
   const [modalOpen, setModalOpen] = useState(false);
   const [search, setSearch] = useState("");
 
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [deletingId, setDeletingId] = useState(null);
+  const [loadError, setLoadError] = useState("");
+
   const currentDate = useMemo(() => new Date(), []);
 
   useEffect(() => {
+    let active = true;
+
+    async function loadSupabaseBudgets() {
+      try {
+        setLoading(true);
+        setLoadError("");
+
+        const data = await fetchBudgets();
+
+        if (!active) {
+          return;
+        }
+
+        setBudgets(data);
+
+        // Temporary bridge for other pages still using localStorage.
+        saveBudgets(data);
+      } catch (error) {
+        console.error(
+          "Unable to load Supabase budgets:",
+          error,
+        );
+
+        if (active) {
+          setLoadError(
+            "Budgets could not be loaded. Check your Supabase connection.",
+          );
+        }
+      } finally {
+        if (active) {
+          setLoading(false);
+        }
+      }
+    }
+
+    loadSupabaseBudgets();
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (loading) {
+      return;
+    }
+
+    // Temporary compatibility bridge during migration.
     saveBudgets(budgets);
-  }, [budgets]);
+  }, [budgets, loading]);
 
   useEffect(() => {
     const unsubscribe =
@@ -67,13 +126,13 @@ function Budget() {
 
     return budgetDetails
       .filter((budget) =>
-        budget.category
+        String(budget.category || "")
           .toLowerCase()
           .includes(searchText),
       )
       .sort((firstBudget, secondBudget) =>
-        firstBudget.category.localeCompare(
-          secondBudget.category,
+        String(firstBudget.category || "").localeCompare(
+          String(secondBudget.category || ""),
         ),
       );
   }, [budgetDetails, search]);
@@ -104,7 +163,8 @@ function Budget() {
     setEditingId(null);
 
     setForm({
-      category: availableCategories[0] || categories[0] || "",
+      category:
+        availableCategories[0] || categories[0] || "",
       amount: "",
     });
 
@@ -116,13 +176,17 @@ function Budget() {
 
     setForm({
       category: budget.category,
-      amount: budget.limit.toString(),
+      amount: String(budget.amount || budget.limit || ""),
     });
 
     setModalOpen(true);
   }
 
   function closeModal() {
+    if (saving) {
+      return;
+    }
+
     setModalOpen(false);
     setEditingId(null);
     setForm(defaultForm);
@@ -137,7 +201,7 @@ function Budget() {
     }));
   }
 
-  function handleSubmit(event) {
+  async function handleSubmit(event) {
     event.preventDefault();
 
     const numericAmount = Number(form.amount);
@@ -147,7 +211,10 @@ function Budget() {
       return;
     }
 
-    if (!numericAmount || numericAmount <= 0) {
+    if (
+      !Number.isFinite(numericAmount) ||
+      numericAmount <= 0
+    ) {
       alert("Please enter a budget greater than $0.");
       return;
     }
@@ -166,46 +233,85 @@ function Budget() {
       return;
     }
 
-    if (editingId) {
-      setBudgets((currentBudgets) =>
-        currentBudgets.map((budget) =>
-          budget.id === editingId
-            ? {
-                ...budget,
-                category: form.category,
-                amount: numericAmount,
-              }
-            : budget,
-        ),
-      );
-    } else {
-      setBudgets((currentBudgets) => [
-        ...currentBudgets,
-        {
-          id: crypto.randomUUID(),
-          category: form.category,
-          amount: numericAmount,
-        },
-      ]);
-    }
+    const budgetData = {
+      category: form.category,
+      amount: numericAmount,
+    };
 
-    closeModal();
+    try {
+      setSaving(true);
+
+      if (editingId) {
+        const savedBudget = await updateBudget(
+          editingId,
+          budgetData,
+        );
+
+        setBudgets((currentBudgets) =>
+          currentBudgets.map((budget) =>
+            budget.id === editingId
+              ? savedBudget
+              : budget,
+          ),
+        );
+      } else {
+        const savedBudget =
+          await createBudget(budgetData);
+
+        setBudgets((currentBudgets) => [
+          ...currentBudgets,
+          savedBudget,
+        ]);
+      }
+
+      setModalOpen(false);
+      setEditingId(null);
+      setForm(defaultForm);
+    } catch (error) {
+      console.error("Unable to save budget:", error);
+
+      alert(
+        "The budget could not be saved. Check the browser console and your Supabase connection.",
+      );
+    } finally {
+      setSaving(false);
+    }
   }
 
-  function deleteBudget(id) {
+  async function handleDeleteBudget(id) {
+    const budget = budgets.find(
+      (item) => item.id === id,
+    );
+
     const confirmed = window.confirm(
-      "Are you sure you want to delete this budget?",
+      `Are you sure you want to delete the ${
+        budget?.category || "selected"
+      } budget?`,
     );
 
     if (!confirmed) {
       return;
     }
 
-    setBudgets((currentBudgets) =>
-      currentBudgets.filter(
-        (budget) => budget.id !== id,
-      ),
-    );
+    try {
+      setDeletingId(id);
+
+      await deleteBudgetFromSupabase(id);
+
+      setBudgets((currentBudgets) =>
+        currentBudgets.filter(
+          (currentBudget) => currentBudget.id !== id,
+        ),
+      );
+    } catch (error) {
+      console.error("Unable to delete budget:", error);
+
+      alert(
+        "The budget could not be deleted. Check the browser console and your Supabase connection.",
+      );
+    } finally {
+      setDeletingId(null);
+    }
   }
 
   return (
@@ -228,12 +334,23 @@ function Budget() {
           className="primary-button button-with-icon"
           type="button"
           onClick={openAddModal}
-          disabled={availableCategories.length === 0}
+          disabled={
+            loading ||
+            availableCategories.length === 0
+          }
         >
           <FiPlus />
           Add budget
         </button>
       </div>
+
+      {loadError && (
+        <section className="content-card">
+          <p className="table-empty-state">
+            {loadError}
+          </p>
+        </section>
+      )}
 
       <div className="budget-summary-grid">
         <section className="summary-card">
@@ -321,14 +438,25 @@ function Budget() {
           </span>
         </div>
 
-        {filteredBudgets.length > 0 ? (
+        {loading ? (
+          <div className="budget-empty-state">
+            <strong>Loading budgets...</strong>
+
+            <span>
+              Retrieving your budgets from Supabase.
+            </span>
+          </div>
+        ) : filteredBudgets.length > 0 ? (
           <div className="budget-card-grid">
             {filteredBudgets.map((budget) => (
               <BudgetCard
                 key={budget.id}
                 budget={budget}
                 onEdit={openEditModal}
-                onDelete={deleteBudget}
+                onDelete={handleDeleteBudget}
+                deleting={
+                  deletingId === budget.id
+                }
               />
             ))}
           </div>
@@ -377,6 +505,7 @@ function Budget() {
                 type="button"
                 onClick={closeModal}
                 aria-label="Close budget form"
+                disabled={saving}
               >
                 <FiX />
               </button>
@@ -396,6 +525,7 @@ function Budget() {
                   name="category"
                   value={form.category}
                   onChange={handleInputChange}
+                  disabled={saving}
                 >
                   {categories.map((category) => {
                     const usedByAnotherBudget =
@@ -439,6 +569,7 @@ function Budget() {
                     value={form.amount}
                     onChange={handleInputChange}
                     autoFocus
+                    disabled={saving}
                   />
                 </div>
               </div>
@@ -448,6 +579,7 @@ function Budget() {
                   className="secondary-button modal-cancel-button"
                   type="button"
                   onClick={closeModal}
+                  disabled={saving}
                 >
                   Cancel
                 </button>
@@ -455,10 +587,13 @@ function Budget() {
                 <button
                   className="primary-button"
                   type="submit"
+                  disabled={saving}
                 >
-                  {editingId
-                    ? "Save changes"
-                    : "Save budget"}
+                  {saving
+                    ? "Saving..."
+                    : editingId
+                      ? "Save changes"
+                      : "Save budget"}
                 </button>
               </div>
             </form>
@@ -473,6 +608,7 @@ function BudgetCard({
   budget,
   onEdit,
   onDelete,
+  deleting,
 }) {
   const visiblePercentage = Math.min(
     Math.max(budget.percentage, 0),
@@ -504,6 +640,7 @@ function BudgetCard({
             type="button"
             onClick={() => onEdit(budget)}
             aria-label={`Edit ${budget.category} budget`}
+            disabled={deleting}
           >
             <FiEdit2 />
           </button>
@@ -513,6 +650,7 @@ function BudgetCard({
             type="button"
             onClick={() => onDelete(budget.id)}
             aria-label={`Delete ${budget.category} budget`}
+            disabled={deleting}
           >
             <FiTrash2 />
           </button>
