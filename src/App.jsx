@@ -38,6 +38,7 @@ import Accounts from "./pages/Accounts";
 import BetaWelcome from "./pages/BetaWelcome";
 import Onboarding from "./pages/Onboarding";
 import AuthCallback from "./pages/AuthCallback";
+import FeedbackWidget from "./components/FeedbackWidget";
 
 const navigationItems = [
   {
@@ -348,6 +349,7 @@ function ProtectedApp() {
           />
         </Routes>
       </main>
+      <FeedbackWidget />
     </div>
   );
 }

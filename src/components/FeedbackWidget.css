@@ -1,0 +1,257 @@
+.feedback-launcher {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  z-index: 70;
+  min-height: 48px;
+  padding: 0 17px;
+  border: 0;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  background: linear-gradient(
+    135deg,
+    #2563eb,
+    #0ea5e9
+  );
+  color: #ffffff;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 800;
+  cursor: pointer;
+  box-shadow:
+    0 16px 34px rgba(37, 99, 235, 0.3),
+    0 4px 12px rgba(15, 23, 42, 0.18);
+}
+
+.feedback-launcher:hover {
+  transform: translateY(-2px);
+}
+
+.feedback-launcher svg {
+  font-size: 18px;
+}
+
+.feedback-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  border: 0;
+  background: rgba(15, 23, 42, 0.45);
+  backdrop-filter: blur(3px);
+}
+
+.feedback-panel {
+  position: fixed;
+  top: 0;
+  right: 0;
+  z-index: 90;
+  width: min(430px, 100%);
+  height: 100vh;
+  padding: 28px;
+  overflow-y: auto;
+  background: #ffffff;
+  color: #0f172a;
+  box-shadow: -18px 0 50px rgba(15, 23, 42, 0.2);
+  animation: feedback-panel-in 180ms ease-out;
+}
+
+@keyframes feedback-panel-in {
+  from {
+    transform: translateX(100%);
+  }
+
+  to {
+    transform: translateX(0);
+  }
+}
+
+.feedback-panel-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.feedback-panel-header p {
+  margin: 0 0 5px;
+  color: #2563eb;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+}
+
+.feedback-panel-header h2 {
+  margin: 0;
+  font-size: 28px;
+  letter-spacing: -0.035em;
+}
+
+.feedback-panel-header > button {
+  width: 38px;
+  height: 38px;
+  border: 1px solid #dbe3ee;
+  border-radius: 11px;
+  display: grid;
+  place-items: center;
+  background: #ffffff;
+  color: #475569;
+  cursor: pointer;
+}
+
+.feedback-panel-intro {
+  margin: 18px 0 24px;
+  color: #64748b;
+  line-height: 1.65;
+}
+
+.feedback-form {
+  display: grid;
+  gap: 18px;
+}
+
+.feedback-form label {
+  display: grid;
+  gap: 8px;
+}
+
+.feedback-form label > span {
+  color: #334155;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.feedback-form input,
+.feedback-form select,
+.feedback-form textarea {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid #cbd5e1;
+  border-radius: 12px;
+  outline: none;
+  background: #ffffff;
+  color: #0f172a;
+  font: inherit;
+}
+
+.feedback-form input,
+.feedback-form select {
+  min-height: 46px;
+  padding: 0 13px;
+}
+
+.feedback-form textarea {
+  padding: 13px;
+  resize: vertical;
+}
+
+.feedback-form input:focus,
+.feedback-form select:focus,
+.feedback-form textarea:focus {
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.12);
+}
+
+.feedback-page-detail {
+  padding: 12px 13px;
+  border-radius: 11px;
+  display: grid;
+  gap: 3px;
+  background: #f8fafc;
+  color: #64748b;
+  font-size: 12px;
+}
+
+.feedback-page-detail strong {
+  color: #334155;
+  word-break: break-word;
+}
+
+.feedback-error {
+  padding: 12px 13px;
+  border: 1px solid #fecaca;
+  border-radius: 11px;
+  background: #fef2f2;
+  color: #b91c1c;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.feedback-submit-button {
+  min-height: 48px;
+  border: 0;
+  border-radius: 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  background: linear-gradient(
+    135deg,
+    #2563eb,
+    #0284c7
+  );
+  color: #ffffff;
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+  box-shadow: 0 10px 24px rgba(37, 99, 235, 0.22);
+}
+
+.feedback-submit-button:disabled,
+.feedback-panel-header > button:disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
+}
+
+.feedback-success-state {
+  min-height: 420px;
+  display: flex;
+  align-items: center;
+  flex-direction: column;
+  justify-content: center;
+  text-align: center;
+}
+
+.feedback-success-state > svg {
+  color: #16a34a;
+  font-size: 58px;
+}
+
+.feedback-success-state h3 {
+  margin: 18px 0 8px;
+  font-size: 24px;
+}
+
+.feedback-success-state p {
+  max-width: 310px;
+  margin: 0;
+  color: #64748b;
+  line-height: 1.6;
+}
+
+.feedback-success-state button {
+  margin-top: 24px;
+  min-height: 43px;
+  padding: 0 16px;
+  border: 1px solid #cbd5e1;
+  border-radius: 11px;
+  background: #ffffff;
+  color: #0f172a;
+  font: inherit;
+  font-weight: 750;
+  cursor: pointer;
+}
+
+@media (max-width: 640px) {
+  .feedback-launcher {
+    right: 16px;
+    bottom: 16px;
+  }
+
+  .feedback-panel {
+    width: 100%;
+    padding: 22px;
+  }
+}
