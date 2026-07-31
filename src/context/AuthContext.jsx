@@ -66,7 +66,7 @@ export function AuthProvider({ children }) {
       full_name: fullName,
     },
     emailRedirectTo:
-  "https://clear-budget-puce.vercel.app/auth/callback",
+  "https://www.clearbudgetapp.com/auth/callback"
   },
 });
 
