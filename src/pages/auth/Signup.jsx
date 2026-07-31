@@ -7,6 +7,7 @@ export default function Signup() {
   const navigate = useNavigate();
   const { signUp } = useAuth();
 
+  const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -21,6 +22,11 @@ export default function Signup() {
 
     setError("");
     setMessage("");
+
+    if (!fullName.trim()) {
+      setError("Please enter your full name.");
+      return;
+    }
 
     if (password.length < 6) {
       setError("Your password must be at least 6 characters.");
@@ -40,14 +46,19 @@ export default function Signup() {
     setLoading(true);
 
     try {
-      await signUp({
-  email,
-  password,
-  fullName: fullName || "",
-});
+      const result = await signUp({
+        email: email.trim(),
+        password,
+        fullName: fullName.trim(),
+      });
 
-      if (data?.session) {
-        navigate("/dashboard");
+      const session =
+        result?.session ??
+        result?.data?.session ??
+        null;
+
+      if (session) {
+        navigate("/beta-welcome", { replace: true });
         return;
       }
 
@@ -55,7 +66,12 @@ export default function Signup() {
         "Your account was created. Check your email to confirm your account before signing in."
       );
     } catch (err) {
-      setError(err.message || "Unable to create your account.");
+      console.error("Unable to create account:", err);
+
+      setError(
+        err?.message ||
+          "Unable to create your account. Please try again."
+      );
     } finally {
       setLoading(false);
     }
@@ -114,11 +130,29 @@ export default function Signup() {
         </div>
 
         <header className="login-heading">
-          <h2>Create your account</h2>
+          <h2>Create your beta account</h2>
           <p>Start building a clearer financial future</p>
         </header>
 
         <form className="login-form" onSubmit={handleSubmit}>
+          <label className="login-field">
+            <span className="login-field-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24">
+                <circle cx="12" cy="8" r="4" />
+                <path d="M5 21a7 7 0 0 1 14 0" />
+              </svg>
+            </span>
+
+            <input
+              type="text"
+              placeholder="Full name"
+              value={fullName}
+              onChange={(event) => setFullName(event.target.value)}
+              autoComplete="name"
+              required
+            />
+          </label>
+
           <label className="login-field">
             <span className="login-field-icon" aria-hidden="true">
               <svg viewBox="0 0 24 24">
@@ -158,8 +192,12 @@ export default function Signup() {
             <button
               className="login-password-toggle"
               type="button"
-              aria-label={showPassword ? "Hide password" : "Show password"}
-              onClick={() => setShowPassword((current) => !current)}
+              aria-label={
+                showPassword ? "Hide password" : "Show password"
+              }
+              onClick={() =>
+                setShowPassword((current) => !current)
+              }
             >
               {showPassword ? (
                 <svg viewBox="0 0 24 24">
@@ -187,7 +225,9 @@ export default function Signup() {
               type={showPassword ? "text" : "password"}
               placeholder="Confirm password"
               value={confirmPassword}
-              onChange={(event) => setConfirmPassword(event.target.value)}
+              onChange={(event) =>
+                setConfirmPassword(event.target.value)
+              }
               autoComplete="new-password"
               minLength={6}
               required
@@ -202,19 +242,28 @@ export default function Signup() {
             <input
               type="checkbox"
               checked={agreeToTerms}
-              onChange={(event) => setAgreeToTerms(event.target.checked)}
+              onChange={(event) =>
+                setAgreeToTerms(event.target.checked)
+              }
             />
 
             <span>
-              I agree to the <a href="#terms">Terms of Service</a> and{" "}
+              I agree to the{" "}
+              <a href="#terms">Terms of Service</a> and{" "}
               <a href="#privacy">Privacy Policy</a>
             </span>
           </label>
 
-          {error && <div className="login-alert login-alert-error">{error}</div>}
+          {error && (
+            <div className="login-alert login-alert-error">
+              {error}
+            </div>
+          )}
 
           {message && (
-            <div className="login-alert login-alert-success">{message}</div>
+            <div className="login-alert login-alert-success">
+              {message}
+            </div>
           )}
 
           <button
@@ -222,7 +271,11 @@ export default function Signup() {
             type="submit"
             disabled={loading}
           >
-            <span>{loading ? "Creating account..." : "Create Account"}</span>
+            <span>
+              {loading
+                ? "Creating account..."
+                : "Join the Beta"}
+            </span>
 
             {!loading && (
               <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -256,7 +309,13 @@ export default function Signup() {
           <div className="login-trust-item">
             <div className="login-trust-icon">
               <svg viewBox="0 0 24 24">
-                <rect x="5" y="10" width="14" height="10" rx="2" />
+                <rect
+                  x="5"
+                  y="10"
+                  width="14"
+                  height="10"
+                  rx="2"
+                />
                 <path d="M8 10V7a4 4 0 0 1 8 0v3" />
               </svg>
             </div>
@@ -276,15 +335,16 @@ export default function Signup() {
             </div>
 
             <div>
-              <strong>Clear and reliable</strong>
-              <span>Built for peace of mind</span>
+              <strong>Free during beta</strong>
+              <span>No payment information required</span>
             </div>
           </div>
         </footer>
       </section>
 
       <p className="login-copyright">
-        © {new Date().getFullYear()} ClearBudget. Your finances, made clearer.
+        © {new Date().getFullYear()} ClearBudget. Your finances,
+        made clearer.
       </p>
     </main>
   );

@@ -2,6 +2,23 @@ import { supabase } from "./supabase";
 
 const TABLE = "accounts";
 
+async function getCurrentUserId() {
+  const {
+    data: { user },
+    error,
+  } = await supabase.auth.getUser();
+
+  if (error) {
+    throw error;
+  }
+
+  if (!user) {
+    throw new Error("You must be signed in.");
+  }
+
+  return user.id;
+}
+
 function normalizeAccount(account) {
   const startingBalance = Number(
     account.starting_balance ??
@@ -15,10 +32,8 @@ function normalizeAccount(account) {
     name: account.name,
     accountType: account.account_type,
 
-    // New permanent opening balance.
     startingBalance,
 
-    // Temporary compatibility property.
     balance: Number(
       account.balance ?? startingBalance,
     ),
@@ -42,8 +57,7 @@ function toDatabase(account) {
     account_type: account.accountType,
     starting_balance: startingBalance,
 
-    // Keep synchronized temporarily while older screens
-    // may still read the balance column.
+    // Temporary compatibility field.
     balance: startingBalance,
 
     color: account.color || "#2563eb",
@@ -55,9 +69,12 @@ function toDatabase(account) {
 export async function fetchAccounts({
   includeArchived = false,
 } = {}) {
+  const userId = await getCurrentUserId();
+
   let query = supabase
     .from(TABLE)
     .select("*")
+    .eq("user_id", userId)
     .order("created_at", {
       ascending: true,
     });
@@ -76,9 +93,14 @@ export async function fetchAccounts({
 }
 
 export async function createAccount(account) {
+  const userId = await getCurrentUserId();
+
   const { data, error } = await supabase
     .from(TABLE)
-    .insert(toDatabase(account))
+    .insert({
+      ...toDatabase(account),
+      user_id: userId,
+    })
     .select()
     .single();
 
@@ -90,10 +112,13 @@ export async function createAccount(account) {
 }
 
 export async function updateAccount(id, account) {
+  const userId = await getCurrentUserId();
+
   const { data, error } = await supabase
     .from(TABLE)
     .update(toDatabase(account))
     .eq("id", id)
+    .eq("user_id", userId)
     .select()
     .single();
 
@@ -108,6 +133,8 @@ export async function updateStartingBalance(
   id,
   startingBalance,
 ) {
+  const userId = await getCurrentUserId();
+
   const normalizedBalance = Number(
     startingBalance || 0,
   );
@@ -116,13 +143,11 @@ export async function updateStartingBalance(
     .from(TABLE)
     .update({
       starting_balance: normalizedBalance,
-
-      // Temporary compatibility field.
       balance: normalizedBalance,
-
       updated_at: new Date().toISOString(),
     })
     .eq("id", id)
+    .eq("user_id", userId)
     .select()
     .single();
 
@@ -134,6 +159,8 @@ export async function updateStartingBalance(
 }
 
 export async function archiveAccount(id) {
+  const userId = await getCurrentUserId();
+
   const { data, error } = await supabase
     .from(TABLE)
     .update({
@@ -141,6 +168,7 @@ export async function archiveAccount(id) {
       updated_at: new Date().toISOString(),
     })
     .eq("id", id)
+    .eq("user_id", userId)
     .select()
     .single();
 
@@ -152,6 +180,8 @@ export async function archiveAccount(id) {
 }
 
 export async function restoreAccount(id) {
+  const userId = await getCurrentUserId();
+
   const { data, error } = await supabase
     .from(TABLE)
     .update({
@@ -159,6 +189,7 @@ export async function restoreAccount(id) {
       updated_at: new Date().toISOString(),
     })
     .eq("id", id)
+    .eq("user_id", userId)
     .select()
     .single();
 
@@ -170,10 +201,13 @@ export async function restoreAccount(id) {
 }
 
 export async function deleteAccount(id) {
+  const userId = await getCurrentUserId();
+
   const { error } = await supabase
     .from(TABLE)
     .delete()
-    .eq("id", id);
+    .eq("id", id)
+    .eq("user_id", userId);
 
   if (error) {
     throw error;

@@ -1,0 +1,143 @@
+.beta-welcome-page {
+  min-height: 100vh;
+  padding: 48px 20px;
+  display: grid;
+  place-items: center;
+  background:
+    radial-gradient(
+      circle at top left,
+      rgba(37, 99, 235, 0.22),
+      transparent 34rem
+    ),
+    linear-gradient(180deg, #f8fbff 0%, #edf4fb 100%);
+  color: #0f172a;
+}
+
+.beta-welcome-card {
+  width: min(880px, 100%);
+  padding: 52px;
+  border: 1px solid rgba(148, 163, 184, 0.28);
+  border-radius: 30px;
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: 0 32px 80px rgba(15, 23, 42, 0.15);
+}
+
+.beta-welcome-badge {
+  width: fit-content;
+  margin: 0 auto;
+  padding: 8px 13px;
+  border: 1px solid #bfdbfe;
+  border-radius: 999px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #eff6ff;
+  color: #1d4ed8;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.beta-welcome-card > h1 {
+  margin: 20px 0 12px;
+  font-size: clamp(38px, 6vw, 58px);
+  line-height: 1;
+  letter-spacing: -0.05em;
+  text-align: center;
+}
+
+.beta-welcome-intro {
+  max-width: 660px;
+  margin: 0 auto;
+  color: #64748b;
+  font-size: 18px;
+  line-height: 1.7;
+  text-align: center;
+}
+
+.beta-welcome-grid {
+  margin: 38px 0 26px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.beta-welcome-grid article {
+  padding: 22px;
+  border: 1px solid #dbe3ee;
+  border-radius: 20px;
+  display: flex;
+  gap: 15px;
+  background: #f8fafc;
+}
+
+.beta-welcome-grid article > span {
+  width: 42px;
+  height: 42px;
+  flex: 0 0 42px;
+  border-radius: 13px;
+  display: grid;
+  place-items: center;
+  background: #e0efff;
+  color: #2563eb;
+  font-size: 20px;
+}
+
+.beta-welcome-grid h2 {
+  margin: 0 0 7px;
+  font-size: 16px;
+}
+
+.beta-welcome-grid p {
+  margin: 0;
+  color: #64748b;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.beta-welcome-note {
+  padding: 17px 20px;
+  border-radius: 16px;
+  display: grid;
+  gap: 4px;
+  background: #ecfdf5;
+  color: #166534;
+  text-align: center;
+}
+
+.beta-welcome-note span {
+  font-size: 13px;
+}
+
+.beta-welcome-card > button {
+  min-height: 52px;
+  margin: 28px auto 0;
+  padding: 0 22px;
+  border: 0;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  background: linear-gradient(135deg, #2563eb, #0ea5e9);
+  color: #ffffff;
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+  box-shadow: 0 16px 32px rgba(37, 99, 235, 0.24);
+}
+
+.beta-welcome-card > button:hover {
+  transform: translateY(-1px);
+}
+
+@media (max-width: 700px) {
+  .beta-welcome-card {
+    padding: 34px 20px;
+  }
+
+  .beta-welcome-grid {
+    grid-template-columns: 1fr;
+  }
+}

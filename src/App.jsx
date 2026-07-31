@@ -9,6 +9,7 @@ import {
 import {
   FiBarChart2,
   FiCalendar,
+  FiCreditCard,
   FiDollarSign,
   FiHome,
   FiLogOut,
@@ -17,13 +18,13 @@ import {
   FiSettings,
   FiTarget,
   FiX,
-  FiCreditCard,
 } from "react-icons/fi";
 
 import { useAuth } from "./context/AuthContext";
 
 import Login from "./pages/auth/Login";
 import Signup from "./pages/auth/Signup";
+import LandingPage from "./pages/LandingPage";
 
 import Dashboard from "./pages/Dashboard";
 import Transactions from "./pages/Transactions";
@@ -34,6 +35,9 @@ import Reports from "./pages/Reports";
 import Calendar from "./pages/Calendar";
 import Settings from "./pages/Settings";
 import Accounts from "./pages/Accounts";
+import BetaWelcome from "./pages/BetaWelcome";
+import Onboarding from "./pages/Onboarding";
+import AuthCallback from "./pages/AuthCallback";
 
 const navigationItems = [
   {
@@ -42,10 +46,10 @@ const navigationItems = [
     icon: FiHome,
   },
   {
-  name: "Accounts",
-  path: "/accounts",
-  icon: FiCreditCard,
-},
+    name: "Accounts",
+    path: "/accounts",
+    icon: FiCreditCard,
+  },
   {
     name: "Transactions",
     path: "/transactions",
@@ -100,6 +104,31 @@ function App() {
   return (
     <Routes>
       <Route
+  path="/onboarding"
+  element={
+    user ? (
+      <Onboarding />
+    ) : (
+      <Navigate to="/login" replace />
+    )
+  }
+/>
+      <Route
+  path="/beta-welcome"
+  element={
+    user ? (
+      <BetaWelcome />
+    ) : (
+      <Navigate to="/login" replace />
+    )
+  }
+/>
+      <Route
+        path="/"
+        element={<LandingPage user={user} />}
+      />
+
+      <Route
         path="/login"
         element={
           user ? (
@@ -120,6 +149,10 @@ function App() {
           )
         }
       />
+<Route
+  path="/auth/callback"
+  element={<AuthCallback />}
+/>
       <Route
         path="/*"
         element={
@@ -261,19 +294,19 @@ function ProtectedApp() {
         <Routes>
           <Route
             path="/"
-            element={
-              <Navigate to="/dashboard" replace />
-            }
+            element={<Navigate to="/dashboard" replace />}
           />
 
           <Route
             path="/dashboard"
             element={<Dashboard />}
           />
-        <Route
-  path="/accounts"
-  element={<Accounts />}
-/>
+
+          <Route
+            path="/accounts"
+            element={<Accounts />}
+          />
+
           <Route
             path="/transactions"
             element={<Transactions />}
@@ -303,7 +336,6 @@ function ProtectedApp() {
             path="/calendar"
             element={<Calendar />}
           />
-          
 
           <Route
             path="/settings"
@@ -312,15 +344,12 @@ function ProtectedApp() {
 
           <Route
             path="*"
-            element={
-              <Navigate to="/dashboard" replace />
-            }
+            element={<Navigate to="/dashboard" replace />}
           />
         </Routes>
       </main>
     </div>
   );
 }
-
 
 export default App;

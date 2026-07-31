@@ -59,14 +59,15 @@ export function AuthProvider({ children }) {
     fullName,
   }) {
     const { data, error } = await supabase.auth.signUp({
-      email: email.trim(),
-      password,
-      options: {
-        data: {
-          full_name: (fullName || "").trim(),
-        },
-      },
-    });
+  email,
+  password,
+  options: {
+    data: {
+      full_name: fullName,
+    },
+    emailRedirectTo: `${window.location.origin}/auth/callback`,
+  },
+});
 
     if (error) {
       throw error;
