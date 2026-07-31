@@ -391,17 +391,87 @@ const accountsWithBalances = useMemo(() => {
           </p>
         </div>
 
-        <button
-          className="primary-button button-with-icon"
-          type="button"
-          onClick={openAddModal}
-          disabled={loading}
+        <div
+          className="no-print"
+          style={{ display: "flex", gap: "12px" }}
         >
-          <FiPlus />
-          Add account
-        </button>
+          <button
+            className="secondary-button"
+            type="button"
+            onClick={() => window.print()}
+          >
+            Print Summary
+          </button>
+
+          <button
+            className="primary-button button-with-icon"
+            type="button"
+            onClick={openAddModal}
+            disabled={loading}
+          >
+            <FiPlus />
+            Add account
+          </button>
+        </div>
       </div>
 
+      <section className="accounts-print-summary print-only">
+  <div className="print-only print-header">
+    <h1>ClearBudget Account Summary</h1>
+
+    <p>
+      Printed:{" "}
+      {new Date().toLocaleDateString("en-US", {
+        month: "long",
+        day: "numeric",
+        year: "numeric",
+      })}
+    </p>
+  </div>
+
+  <div className="print-summary-totals">
+    <div>
+      <span>Total Assets</span>
+      <strong>{formatCurrency(totals.assets)}</strong>
+    </div>
+
+    <div>
+      <span>Total Liabilities</span>
+      <strong>{formatCurrency(totals.liabilities)}</strong>
+    </div>
+
+    <div>
+      <span>Net Worth</span>
+      <strong>{formatCurrency(totals.netWorth)}</strong>
+    </div>
+  </div>
+
+  <table className="print-accounts-table">
+    <thead>
+      <tr>
+        <th>Account</th>
+        <th>Type</th>
+        <th>Starting Balance</th>
+        <th>Current Balance</th>
+      </tr>
+    </thead>
+
+    <tbody>
+      {accountsWithBalances
+        .filter((account) => !account.isArchived)
+        .map((account) => (
+          <tr key={account.id}>
+            <td>{account.name}</td>
+            <td>
+              {accountTypeLabels[account.accountType] || "Account"}
+            </td>
+            <td>{formatCurrency(account.startingBalance)}</td>
+            <td>{formatCurrency(account.currentBalance)}</td>
+          </tr>
+        ))}
+    </tbody>
+  </table>
+</section>
       <div className="goal-summary-grid">
         <section className="summary-card">
           <p>Net worth</p>
@@ -728,8 +798,8 @@ const accountsWithBalances = useMemo(() => {
                   <input
                     id="account-balance"
                     name="startingBalance"
-                    type="number"
-                    step="0.01"
+                    type="text"
+                    inputMode="decimal"
                     placeholder="0.00"
                     value={accountForm.startingBalance}
                     onChange={handleInputChange}

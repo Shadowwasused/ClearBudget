@@ -190,14 +190,134 @@ function Calendar() {
           </p>
         </div>
 
-        <button
-          className="secondary-button calendar-today-button"
-          type="button"
-          onClick={goToToday}
-        >
-          Today
-        </button>
+        <div className="calendar-heading-actions no-print">
+          <button
+            className="secondary-button"
+            type="button"
+            onClick={() => window.print()}
+          >
+            Print Calendar
+          </button>
+
+          <button
+            className="secondary-button calendar-today-button"
+            type="button"
+            onClick={goToToday}
+          >
+            Today
+          </button>
+        </div>
       </div>
+
+      <section className="print-only calendar-print-summary">
+        <div className="print-header">
+          <div className="print-brand">
+            <div className="print-logo">C</div>
+
+            <div>
+              <h1>ClearBudget Financial Calendar</h1>
+              <p>{monthLabel}</p>
+            </div>
+          </div>
+
+          <p>
+            Printed: {new Date().toLocaleDateString("en-US")}
+          </p>
+        </div>
+
+        <div className="print-summary-totals">
+          <div>
+            <span>Income</span>
+            <strong>
+              {formatCurrency(monthSummary.income)}
+            </strong>
+          </div>
+
+          <div>
+            <span>Expenses</span>
+            <strong>
+              {formatCurrency(monthSummary.expenses)}
+            </strong>
+          </div>
+
+          <div>
+            <span>Unpaid Bills</span>
+            <strong>
+              {formatBillCurrency(monthSummary.unpaidBills)}
+            </strong>
+          </div>
+
+          <div>
+            <span>Net Activity</span>
+            <strong>
+              {formatCurrency(monthSummary.net)}
+            </strong>
+          </div>
+        </div>
+
+        <div className="print-calendar-weekdays">
+          <span>Sunday</span>
+          <span>Monday</span>
+          <span>Tuesday</span>
+          <span>Wednesday</span>
+          <span>Thursday</span>
+          <span>Friday</span>
+          <span>Saturday</span>
+        </div>
+
+        <div className="print-calendar-grid">
+          {calendarDays.map((day) => (
+            <div
+              key={day.dateKey}
+              className={[
+                "print-calendar-day",
+                day.isCurrentMonth
+                  ? ""
+                  : "print-calendar-day-muted",
+                day.isToday
+                  ? "print-calendar-day-today"
+                  : "",
+              ]
+                .filter(Boolean)
+                .join(" ")}
+            >
+              <strong className="print-calendar-day-number">
+                {day.dayNumber}
+              </strong>
+
+              <div className="print-calendar-events">
+                {day.incomeTotal > 0 && (
+                  <div className="print-calendar-event print-calendar-income">
+                    <span>Income</span>
+                    <strong>
+                      +{formatCurrency(day.incomeTotal)}
+                    </strong>
+                  </div>
+                )}
+
+                {day.expenseTotal > 0 && (
+                  <div className="print-calendar-event print-calendar-expense">
+                    <span>Expenses</span>
+                    <strong>
+                      -{formatCurrency(day.expenseTotal)}
+                    </strong>
+                  </div>
+                )}
+
+                {day.billCount > 0 && (
+                  <div className="print-calendar-event print-calendar-bill">
+                    <span>
+                      {day.billCount === 1
+                        ? "1 bill due"
+                        : `${day.billCount} bills due`}
+                    </span>
+                  </div>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
 
       <div className="calendar-summary-grid">
         <CalendarSummaryCard

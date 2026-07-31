@@ -2836,3 +2836,772 @@ a {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
+/* =========================================================
+   PRINTABLE SUMMARIES — ACCOUNTS AND BILLS
+   ========================================================= */
+
+.print-only {
+  display: none;
+}
+
+@media print {
+  @page {
+    size: Letter portrait;
+    margin: 0.5in;
+  }
+
+  html,
+  body,
+  #root {
+    min-width: 0 !important;
+    min-height: 0 !important;
+    background: #ffffff !important;
+  }
+
+  body {
+    margin: 0 !important;
+    color: #0f172a !important;
+    font-family:
+      Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
+      "Segoe UI", sans-serif;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  /*
+   * Hide the normal application without depending on every page's
+   * individual class names. The printable section is made visible below.
+   */
+  body * {
+    visibility: hidden;
+  }
+
+  .print-only,
+  .print-only * {
+    visibility: visible;
+  }
+
+  .print-only {
+    position: absolute;
+    top: 0;
+    left: 0;
+    display: block !important;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+    color: #0f172a !important;
+    background: #ffffff !important;
+  }
+
+  .no-print,
+  .sidebar,
+  .sidebar-overlay,
+  .mobile-menu-button,
+  .modal-backdrop {
+    display: none !important;
+  }
+
+  .main-content,
+  .page-content {
+    width: 100% !important;
+    max-width: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  .print-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 24px;
+    margin-bottom: 24px;
+    padding-bottom: 16px;
+    border-bottom: 3px solid #2563eb;
+  }
+
+  .print-header h1 {
+    margin: 0;
+    color: #0f172a !important;
+    font-size: 25px;
+    line-height: 1.2;
+    letter-spacing: -0.025em;
+  }
+
+  .print-header p {
+    margin: 4px 0 0;
+    color: #64748b !important;
+    font-size: 11px;
+    white-space: nowrap;
+  }
+
+  .print-summary-totals {
+    display: grid !important;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 10px;
+    margin: 0 0 24px;
+  }
+
+  .print-summary-totals > div {
+    min-width: 0;
+    padding: 12px;
+    border: 1px solid #cbd5e1;
+    border-radius: 8px;
+    background: #f8fafc !important;
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .print-summary-totals span {
+    display: block;
+    margin-bottom: 6px;
+    color: #64748b !important;
+    font-size: 9px;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .print-summary-totals strong {
+    display: block;
+    overflow-wrap: anywhere;
+    color: #0f172a !important;
+    font-size: 16px;
+    line-height: 1.2;
+  }
+
+  .print-accounts-table {
+    width: 100%;
+    margin-top: 8px;
+    border-collapse: collapse;
+    table-layout: auto;
+    color: #0f172a !important;
+    font-size: 10px;
+  }
+
+  .print-accounts-table thead {
+    display: table-header-group;
+  }
+
+  .print-accounts-table th {
+    padding: 8px 9px;
+    border: 1px solid #94a3b8;
+    background: #e2e8f0 !important;
+    color: #0f172a !important;
+    font-size: 9px;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    text-align: left;
+    text-transform: uppercase;
+  }
+
+  .print-accounts-table td {
+    padding: 8px 9px;
+    border: 1px solid #cbd5e1;
+    color: #334155 !important;
+    line-height: 1.35;
+    vertical-align: top;
+  }
+
+  .print-accounts-table tbody tr:nth-child(even) {
+    background: #f8fafc !important;
+  }
+
+  .print-accounts-table tr {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .print-accounts-table th:last-child,
+  .print-accounts-table td:last-child {
+    text-align: right;
+    white-space: nowrap;
+  }
+
+  .accounts-print-summary,
+  .bills-print-summary {
+    width: 100%;
+  }
+}
+
+@media print and (max-width: 700px) {
+  .print-summary-totals {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media print {
+  .print-brand {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .print-logo {
+    width: 42px;
+    height: 42px;
+    display: grid;
+    place-items: center;
+    flex: 0 0 auto;
+    border-radius: 12px;
+    background: linear-gradient(135deg, #2563eb, #38bdf8) !important;
+    color: #ffffff !important;
+    font-size: 21px;
+    font-weight: 900;
+    box-shadow: 0 6px 18px rgba(37, 99, 235, 0.18);
+  }
+
+  .print-brand h1 {
+    margin: 0;
+  }
+
+  .print-brand p {
+    margin: 4px 0 0;
+    color: #64748b !important;
+    font-size: 10px;
+  }
+}
+/* ======================================================
+   CALENDAR PRINT STYLES
+====================================================== */
+
+.calendar-heading-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+@media print {
+
+  @page {
+    size: landscape;
+    margin: .45in;
+  }
+
+  body {
+    background: #ffffff !important;
+    color: #111827 !important;
+  }
+
+  .no-print,
+  nav,
+  aside,
+  header,
+  footer,
+  .sidebar,
+  .app-sidebar,
+  .top-nav,
+  .page-sidebar {
+    display: none !important;
+  }
+
+  .page-content {
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
+    max-width: none !important;
+  }
+
+  .print-only {
+    display: block !important;
+  }
+
+  .print-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 24px;
+    border-bottom: 2px solid #2563eb;
+    padding-bottom: 14px;
+  }
+
+  .print-brand {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+
+  .print-logo {
+    width: 48px;
+    height: 48px;
+    border-radius: 14px;
+    display: grid;
+    place-items: center;
+    font-size: 24px;
+    font-weight: 800;
+    color: white;
+    background: linear-gradient(135deg,#2563eb,#38bdf8);
+  }
+
+  .print-brand h1 {
+    margin: 0;
+    font-size: 24px;
+    color: #111827;
+  }
+
+  .print-brand p {
+    margin: 4px 0 0;
+    color: #64748b;
+    font-size: 12px;
+  }
+
+  .print-header>p {
+    font-size: 12px;
+    color: #64748b;
+  }
+
+  .print-summary-totals {
+    display: grid;
+    grid-template-columns: repeat(4,1fr);
+    gap: 14px;
+    margin-bottom: 22px;
+  }
+
+  .print-summary-totals div {
+    border: 1px solid #dbeafe;
+    border-radius: 10px;
+    padding: 12px;
+    background: #f8fbff;
+  }
+
+  .print-summary-totals span {
+    display: block;
+    font-size: 11px;
+    color: #64748b;
+    margin-bottom: 6px;
+  }
+
+  .print-summary-totals strong {
+    font-size: 18px;
+    color: #0f172a;
+  }
+
+  .print-calendar-weekdays {
+    display: grid;
+    grid-template-columns: repeat(7,1fr);
+  }
+
+  .print-calendar-weekdays span {
+    background: #2563eb;
+    color: white;
+    text-align: center;
+    padding: 8px;
+    font-size: 11px;
+    font-weight: 700;
+    border: 1px solid #1d4ed8;
+  }
+
+  .print-calendar-grid {
+    display: grid;
+    grid-template-columns: repeat(7,1fr);
+    border-left: 1px solid #cbd5e1;
+    border-top: 1px solid #cbd5e1;
+  }
+
+  .print-calendar-day {
+    min-height: 105px;
+    padding: 6px;
+    border-right: 1px solid #cbd5e1;
+    border-bottom: 1px solid #cbd5e1;
+    background: white;
+    break-inside: avoid;
+  }
+
+  .print-calendar-day-muted {
+    background: #f8fafc;
+  }
+
+  .print-calendar-day-today {
+    outline: 2px solid #2563eb;
+    outline-offset: -2px;
+  }
+
+  .print-calendar-day-number {
+    display: block;
+    font-size: 12px;
+    font-weight: 700;
+    margin-bottom: 6px;
+    color: #111827;
+  }
+
+  .print-calendar-events {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .print-calendar-event {
+    border-radius: 5px;
+    padding: 4px 6px;
+    font-size: 9px;
+    line-height: 1.3;
+  }
+
+  .print-calendar-event span {
+    display: block;
+  }
+
+  .print-calendar-event strong {
+    display: block;
+    margin-top: 2px;
+  }
+
+  .print-calendar-income {
+    background: #dcfce7;
+    color: #166534;
+  }
+
+  .print-calendar-expense {
+    background: #fee2e2;
+    color: #991b1b;
+  }
+
+  .print-calendar-bill {
+    background: #fef3c7;
+    color: #92400e;
+  }
+
+  .calendar-summary-grid,
+  .calendar-layout {
+    display: none !important;
+  }
+}
+
+/* Hide print section during normal use */
+
+.print-only {
+  display: none;
+}
+@media print {
+  @page {
+    size: Letter landscape;
+    margin: 0.3in;
+  }
+
+  .print-header {
+    margin-bottom: 12px;
+    padding-bottom: 8px;
+  }
+
+  .print-logo {
+    width: 40px;
+    height: 40px;
+    font-size: 20px;
+  }
+
+  .print-brand h1 {
+    font-size: 19px;
+  }
+
+  .print-summary-totals {
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+
+  .print-summary-totals div {
+    padding: 7px 9px;
+  }
+
+  .print-summary-totals span {
+    margin-bottom: 3px;
+    font-size: 9px;
+  }
+
+  .print-summary-totals strong {
+    font-size: 14px;
+  }
+
+  .print-calendar-weekdays span {
+    padding: 5px;
+    font-size: 9px;
+  }
+
+  .print-calendar-grid {
+    grid-template-rows: repeat(6, 0.72in);
+  }
+
+  .print-calendar-day {
+    min-height: 0;
+    height: 0.72in;
+    padding: 4px;
+    overflow: hidden;
+  }
+
+  .print-calendar-day-number {
+    margin-bottom: 3px;
+    font-size: 9px;
+  }
+
+  .print-calendar-events {
+    gap: 2px;
+  }
+
+  .print-calendar-event {
+    padding: 2px 3px;
+    font-size: 7px;
+    line-height: 1.15;
+  }
+
+/* =====================================================
+   CLEARBUDGET — TRANSACTIONS PRINT REPORT
+   Paste at the bottom of src/index.css
+===================================================== */
+
+.transaction-heading-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+@media print {
+  @page {
+    size: Letter portrait;
+    margin: 0.45in 0.42in 0.55in;
+  }
+
+  .transactions-print-report {
+    display: block !important;
+    width: 100%;
+    color: #0f172a !important;
+    background: #ffffff !important;
+    font-family: Arial, Helvetica, sans-serif;
+  }
+
+  .transactions-print-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+    margin-bottom: 16px;
+    padding-bottom: 12px;
+    border-bottom: 2px solid #2563eb;
+  }
+
+  .transactions-print-brand {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .transactions-print-logo {
+    display: grid;
+    place-items: center;
+    width: 44px;
+    height: 44px;
+    flex: 0 0 44px;
+    border-radius: 12px;
+    background: linear-gradient(135deg, #2563eb, #38bdf8) !important;
+    color: #ffffff !important;
+    font-size: 22px;
+    font-weight: 900;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .transactions-print-brand h1 {
+    margin: 0;
+    color: #0f172a !important;
+    font-size: 20px;
+    line-height: 1.15;
+  }
+
+  .transactions-print-brand p {
+    margin: 4px 0 0;
+    color: #64748b !important;
+    font-size: 10px;
+  }
+
+  .transactions-print-meta {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 3px;
+    text-align: right;
+  }
+
+  .transactions-print-meta span {
+    color: #64748b !important;
+    font-size: 9px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+
+  .transactions-print-meta strong {
+    color: #0f172a !important;
+    font-size: 10px;
+  }
+
+  .transactions-print-summary {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 8px;
+    margin-bottom: 10px;
+  }
+
+  .transactions-print-summary > div {
+    padding: 9px 10px;
+    border: 1px solid #dbeafe;
+    border-radius: 8px;
+    background: #f8fbff !important;
+    break-inside: avoid;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .transactions-print-summary span {
+    display: block;
+    margin-bottom: 3px;
+    color: #64748b !important;
+    font-size: 8px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  .transactions-print-summary strong {
+    color: #0f172a !important;
+    font-size: 14px;
+  }
+
+  .transactions-print-filter-note {
+    margin-bottom: 10px;
+    color: #64748b !important;
+    font-size: 8px;
+  }
+
+  .transactions-print-table {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: fixed;
+    color: #0f172a !important;
+    font-size: 8px;
+  }
+
+  .transactions-print-table thead {
+    display: table-header-group;
+  }
+
+  .transactions-print-table tfoot {
+    display: table-footer-group;
+  }
+
+  .transactions-print-table th {
+    padding: 6px 5px;
+    border: 1px solid #cbd5e1;
+    background: #e2e8f0 !important;
+    color: #0f172a !important;
+    font-size: 7.5px;
+    font-weight: 800;
+    text-align: left;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .transactions-print-table td {
+    padding: 6px 5px;
+    border: 1px solid #dbe3ec;
+    vertical-align: top;
+    overflow-wrap: anywhere;
+  }
+
+  .transactions-print-table tbody tr {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .transactions-print-table tbody tr:nth-child(even) td {
+    background: #f8fafc !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .transactions-print-table th:nth-child(1),
+  .transactions-print-table td:nth-child(1) {
+    width: 11%;
+  }
+
+  .transactions-print-table th:nth-child(2),
+  .transactions-print-table td:nth-child(2) {
+    width: 27%;
+  }
+
+  .transactions-print-table th:nth-child(3),
+  .transactions-print-table td:nth-child(3) {
+    width: 16%;
+  }
+
+  .transactions-print-table th:nth-child(4),
+  .transactions-print-table td:nth-child(4) {
+    width: 18%;
+  }
+
+  .transactions-print-table th:nth-child(5),
+  .transactions-print-table td:nth-child(5) {
+    width: 11%;
+  }
+
+  .transactions-print-table th:nth-child(6),
+  .transactions-print-table td:nth-child(6) {
+    width: 17%;
+  }
+
+  .transactions-print-notes {
+    display: block;
+    margin-top: 2px;
+    color: #64748b !important;
+    font-size: 7px;
+    font-weight: 400;
+  }
+
+  .transactions-print-type {
+    text-transform: capitalize;
+  }
+
+  .transactions-print-amount {
+    text-align: right !important;
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .transactions-print-empty {
+    padding: 20px !important;
+    color: #64748b !important;
+    text-align: center;
+  }
+
+  .transactions-print-footer {
+    position: fixed;
+    right: 0;
+    bottom: -0.34in;
+    left: 0;
+    display: flex;
+    justify-content: space-between;
+    padding-top: 5px;
+    border-top: 1px solid #cbd5e1;
+    color: #64748b !important;
+    font-size: 7px;
+  }
+
+  .transactions-print-page-number::after {
+    content: "Page " counter(page);
+  }
+
+  /* Hide the normal application while this report prints. */
+  body * {
+    visibility: hidden !important;
+  }
+
+  .transactions-print-report,
+  .transactions-print-report * {
+    visibility: visible !important;
+  }
+
+  .transactions-print-report {
+    position: absolute;
+    top: 0;
+    left: 0;
+  }
+}}
+.transaction-print-button {
+  margin-right: 20px;
+}

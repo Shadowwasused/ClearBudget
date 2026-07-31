@@ -311,16 +311,94 @@ function Bills() {
           </p>
         </div>
 
-        <button
-          className="primary-button button-with-icon"
-          type="button"
-          onClick={openAddModal}
-        >
-          <FiPlus />
-          Add bill
-        </button>
-      </div>
+        <div
+  className="no-print"
+  style={{ display: "flex", gap: "12px" }}
+>
+  <button
+    className="secondary-button"
+    type="button"
+    onClick={() => window.print()}
+  >
+    Print Summary
+  </button>
 
+  <button
+    className="primary-button button-with-icon"
+    type="button"
+    onClick={openAddModal}
+  >
+    <FiPlus />
+    Add bill
+  </button>
+</div>
+      </div>
+<section className="bills-print-summary print-only">
+  <div className="print-header">
+    <h1>ClearBudget Bills Summary</h1>
+
+    <p>
+      Printed:{" "}
+      {new Date().toLocaleDateString("en-US")}
+    </p>
+  </div>
+
+  <div className="print-summary-totals">
+    <div>
+      <span>Total Bills</span>
+      <strong>{bills.length}</strong>
+    </div>
+
+    <div>
+      <span>Total Due</span>
+      <strong>
+        {formatBillCurrency(totals.unpaidAmount)}
+      </strong>
+    </div>
+
+    <div>
+      <span>Total Paid</span>
+      <strong>
+        {formatBillCurrency(totals.paidAmount)}
+      </strong>
+    </div>
+
+    <div>
+      <span>Overdue</span>
+      <strong>{totals.overdueCount}</strong>
+    </div>
+  </div>
+
+  <table className="print-accounts-table">
+    <thead>
+      <tr>
+        <th>Bill</th>
+        <th>Category</th>
+        <th>Due</th>
+        <th>Frequency</th>
+        <th>Status</th>
+        <th>Amount</th>
+      </tr>
+    </thead>
+
+    <tbody>
+      {filteredBills.map((bill) => {
+        const status = getBillStatus(bill);
+
+        return (
+          <tr key={bill.id}>
+            <td>{bill.name}</td>
+            <td>{bill.category}</td>
+            <td>{formatBillDate(bill.dueDate)}</td>
+            <td>{bill.frequency}</td>
+            <td>{status.label}</td>
+            <td>{formatBillCurrency(bill.amount)}</td>
+          </tr>
+        );
+      })}
+    </tbody>
+  </table>
+</section>
       <div className="bill-summary-grid">
         <section className="summary-card">
           <p>Amount due</p>

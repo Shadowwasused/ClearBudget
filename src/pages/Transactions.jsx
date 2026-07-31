@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import {
   FiEdit2,
   FiPlus,
+  FiPrinter,
   FiSearch,
   FiTrash2,
   FiX,
@@ -195,6 +196,39 @@ useEffect(() => {
     [transactions],
   );
 
+  const filteredTotals = useMemo(
+    () => calculateTransactionTotals(filteredTransactions),
+    [filteredTransactions],
+  );
+
+  const reportPeriodLabel = useMemo(() => {
+    if (filteredTransactions.length === 0) {
+      return "No transactions in the current view";
+    }
+
+    const sortedDates = filteredTransactions
+      .map((transaction) => new Date(`${transaction.date}T12:00:00`))
+      .filter((date) => !Number.isNaN(date.getTime()))
+      .sort((first, second) => first - second);
+
+    if (sortedDates.length === 0) {
+      return "Current filtered view";
+    }
+
+    const formatter = new Intl.DateTimeFormat("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    });
+
+    const firstDate = formatter.format(sortedDates[0]);
+    const lastDate = formatter.format(sortedDates[sortedDates.length - 1]);
+
+    return firstDate === lastDate
+      ? firstDate
+      : `${firstDate} – ${lastDate}`;
+  }, [filteredTransactions]);
+
   function openAddModal() {
     setEditingId(null);
 
@@ -383,16 +417,129 @@ const transactionData = {
           </p>
         </div>
 
-        <button
-          className="primary-button button-with-icon"
-          type="button"
-          onClick={openAddModal}
-          disabled={loading}
-        >
-          <FiPlus />
-          Add transaction
-        </button>
+        <div className="transaction-heading-actions no-print">
+          <button
+            className="secondary-button button-with-icon transaction-print-button"
+            type="button"
+            onClick={() => window.print()}
+            disabled={loading}
+          >
+            <FiPrinter />
+            Print transactions
+          </button>
+
+          <button
+            className="primary-button button-with-icon"
+            type="button"
+            onClick={openAddModal}
+            disabled={loading}
+          >
+            <FiPlus />
+            Add transaction
+          </button>
+        </div>
       </div>
+
+      <section className="print-only transactions-print-report">
+        <header className="transactions-print-header">
+          <div className="transactions-print-brand">
+            <div className="transactions-print-logo">C</div>
+
+            <div>
+              <h1>ClearBudget Transactions Report</h1>
+              <p>{reportPeriodLabel}</p>
+            </div>
+          </div>
+
+          <div className="transactions-print-meta">
+            <span>Printed</span>
+            <strong>
+              {new Date().toLocaleDateString("en-US", {
+                month: "long",
+                day: "numeric",
+                year: "numeric",
+              })}
+            </strong>
+          </div>
+        </header>
+
+        <div className="transactions-print-summary">
+          <div>
+            <span>Total income</span>
+            <strong>{formatCurrency(filteredTotals.income)}</strong>
+          </div>
+
+          <div>
+            <span>Total expenses</span>
+            <strong>{formatCurrency(filteredTotals.expenses)}</strong>
+          </div>
+
+          <div>
+            <span>Net cash flow</span>
+            <strong>{formatCurrency(filteredTotals.balance)}</strong>
+          </div>
+
+          <div>
+            <span>Transactions</span>
+            <strong>{filteredTransactions.length}</strong>
+          </div>
+        </div>
+
+        <div className="transactions-print-filter-note">
+          This report reflects the filters currently selected on the Transactions page.
+        </div>
+
+        <table className="transactions-print-table">
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Description</th>
+              <th>Category</th>
+              <th>Account</th>
+              <th>Type</th>
+              <th className="transactions-print-amount">Amount</th>
+            </tr>
+          </thead>
+
+          <tbody>
+            {filteredTransactions.length > 0 ? (
+              filteredTransactions.map((transaction) => (
+                <tr key={`print-${transaction.id}`}>
+                  <td>{formatTransactionDate(transaction.date)}</td>
+                  <td>
+                    <strong>{transaction.description}</strong>
+                    {transaction.notes && (
+                      <span className="transactions-print-notes">
+                        {transaction.notes}
+                      </span>
+                    )}
+                  </td>
+                  <td>{transaction.category || "Other"}</td>
+                  <td>{transaction.account || "Unassigned"}</td>
+                  <td className="transactions-print-type">
+                    {transaction.type === "income" ? "Income" : "Expense"}
+                  </td>
+                  <td className="transactions-print-amount">
+                    {transaction.type === "income" ? "+" : "-"}
+                    {formatCurrency(transaction.amount)}
+                  </td>
+                </tr>
+              ))
+            ) : (
+              <tr>
+                <td className="transactions-print-empty" colSpan="6">
+                  No transactions match the current filters.
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+
+        <footer className="transactions-print-footer">
+          <span>ClearBudget · Transactions Report</span>
+          <span className="transactions-print-page-number" />
+        </footer>
+      </section>
 
       {loadError && (
         <section className="content-card">
