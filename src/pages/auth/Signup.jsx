@@ -66,13 +66,17 @@ export default function Signup() {
         "Your account was created. Check your email to confirm your account before signing in."
       );
     } catch (err) {
-      console.error("Unable to create account:", err);
+  console.error("Signup error:", err);
 
-      setError(
-        err?.message ||
-          "Unable to create your account. Please try again."
-      );
-    } finally {
+  const readableMessage =
+    err?.message ||
+    err?.error_description ||
+    err?.error ||
+    (typeof err === "string" ? err : "") ||
+    "Unable to create your account. Please try again.";
+
+  setError(readableMessage);
+} finally {
       setLoading(false);
     }
   }

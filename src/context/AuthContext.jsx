@@ -1,5 +1,6 @@
 import {
   createContext,
+  useCallback,
   useContext,
   useEffect,
   useMemo,
@@ -10,28 +11,65 @@ import { supabase } from "../lib/supabase";
 
 const AuthContext = createContext(null);
 
+const SESSION_TIMEOUT_MS = 8000;
+
+function withTimeout(promise, milliseconds) {
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => {
+      window.setTimeout(() => {
+        reject(
+          new Error(
+            "Supabase session loading timed out.",
+          ),
+        );
+      }, milliseconds);
+    }),
+  ]);
+}
+
 export function AuthProvider({ children }) {
   const [session, setSession] = useState(null);
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    let mounted = true;
+    let active = true;
 
     async function loadSession() {
-      const {
-        data: { session: currentSession },
-        error,
-      } = await supabase.auth.getSession();
+      try {
+        const response = await withTimeout(
+          supabase.auth.getSession(),
+          SESSION_TIMEOUT_MS,
+        );
 
-      if (error) {
-        console.error("Unable to load session:", error);
-      }
+        if (!active) {
+          return;
+        }
 
-      if (mounted) {
+        if (response.error) {
+          throw response.error;
+        }
+
+        const currentSession =
+          response.data?.session ?? null;
+
         setSession(currentSession);
         setUser(currentSession?.user ?? null);
-        setLoading(false);
+      } catch (error) {
+        console.error(
+          "Unable to load Supabase session:",
+          error,
+        );
+
+        if (active) {
+          setSession(null);
+          setUser(null);
+        }
+      } finally {
+        if (active) {
+          setLoading(false);
+        }
       }
     }
 
@@ -41,6 +79,10 @@ export function AuthProvider({ children }) {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(
       (_event, nextSession) => {
+        if (!active) {
+          return;
+        }
+
         setSession(nextSession);
         setUser(nextSession?.user ?? null);
         setLoading(false);
@@ -48,72 +90,87 @@ export function AuthProvider({ children }) {
     );
 
     return () => {
-      mounted = false;
+      active = false;
       subscription.unsubscribe();
     };
   }, []);
 
-  async function signUp({
-    email,
-    password,
-    fullName,
-  }) {
-    const { data, error } = await supabase.auth.signUp({
-  email,
-  password,
-  options: {
-    data: {
-      full_name: fullName,
+  const signUp = useCallback(
+    async ({ email, password, fullName }) => {
+      const redirectBaseUrl =
+        import.meta.env.VITE_APP_URL ||
+        window.location.origin;
+
+      const { data, error } =
+        await supabase.auth.signUp({
+          email: email.trim(),
+          password,
+          options: {
+            data: {
+              full_name: fullName.trim(),
+            },
+            emailRedirectTo:
+              `${redirectBaseUrl}/auth/callback`,
+          },
+        });
+
+      if (error) {
+        throw error;
+      }
+
+      return data;
     },
-    emailRedirectTo:
-  "https://www.clearbudgetapp.com/auth/callback"
-  },
-});
+    [],
+  );
 
-    if (error) {
-      throw error;
-    }
+  const signIn = useCallback(
+    async ({ email, password }) => {
+      const { data, error } =
+        await supabase.auth.signInWithPassword({
+          email: email.trim(),
+          password,
+        });
 
-    return data;
-  }
+      if (error) {
+        throw error;
+      }
 
-  async function signIn({ email, password }) {
-    const { data, error } =
-      await supabase.auth.signInWithPassword({
-        email: email.trim(),
-        password,
-      });
+      return data;
+    },
+    [],
+  );
 
-    if (error) {
-      throw error;
-    }
-
-    return data;
-  }
-
-  async function signOut() {
+  const signOut = useCallback(async () => {
     const { error } = await supabase.auth.signOut();
 
     if (error) {
       throw error;
     }
-  }
+  }, []);
 
-  async function resetPassword(email) {
-    const { data, error } =
-      await supabase.auth.resetPasswordForEmail(
-        email.trim(),
-        {
-          redirectTo: `${window.location.origin}/reset-password`,
-        },
-      );
+  const resetPassword = useCallback(
+    async (email) => {
+      const redirectBaseUrl =
+        import.meta.env.VITE_APP_URL ||
+        window.location.origin;
 
-    if (error) {
-      throw error;
-    }
+      const { data, error } =
+        await supabase.auth.resetPasswordForEmail(
+          email.trim(),
+          {
+            redirectTo:
+              `${redirectBaseUrl}/reset-password`,
+          },
+        );
 
-    return data;
-  }
+      if (error) {
+        throw error;
+      }
+
+      return data;
+    },
+    [],
+  );
 
   const value = useMemo(
     () => ({
@@ -125,7 +182,15 @@ export function AuthProvider({ children }) {
       signOut,
       resetPassword,
     }),
-    [session, user, loading],
+    [
+      session,
+      user,
+      loading,
+      signUp,
+      signIn,
+      signOut,
+      resetPassword,
+    ],
   );
 
   return (

@@ -3339,7 +3339,7 @@ a {
     font-size: 7px;
     line-height: 1.15;
   }
-
+}
 /* =====================================================
    CLEARBUDGET — TRANSACTIONS PRINT REPORT
    Paste at the bottom of src/index.css
@@ -3586,22 +3586,10 @@ a {
     content: "Page " counter(page);
   }
 
-  /* Hide the normal application while this report prints. */
-  body * {
-    visibility: hidden !important;
-  }
-
-  .transactions-print-report,
-  .transactions-print-report * {
-    visibility: visible !important;
-  }
-
-  .transactions-print-report {
-    position: absolute;
-    top: 0;
-    left: 0;
-  }
+.transactions-print-report {
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: block !important;
+  width: 100%;
 }}
-.transaction-print-button {
-  margin-right: 20px;
-}
