@@ -9,6 +9,7 @@ import {
 import {
   FiBarChart2,
   FiCalendar,
+  FiCpu,
   FiCreditCard,
   FiDollarSign,
   FiHome,
@@ -41,6 +42,7 @@ import BetaWelcome from "./pages/BetaWelcome";
 import Onboarding from "./pages/Onboarding";
 import AuthCallback from "./pages/AuthCallback";
 import FeedbackWidget from "./components/FeedbackWidget";
+import AICoach from "./pages/AICoach";
 
 const navigationItems = [
   {
@@ -84,6 +86,12 @@ const navigationItems = [
     path: "/calendar",
     icon: FiCalendar,
   },
+  {
+  name: "AI Coach",
+  path: "/ai-coach",
+  icon: FiCpu,
+  requiresAICoach: true,
+},
   {
     name: "Settings",
     path: "/settings",
@@ -184,9 +192,10 @@ function ProtectedApp() {
   } = useAuth();
 
   const {
-    multipleAccountsEnabled,
-    settingsLoading,
-  } = useUserSettings();
+  multipleAccountsEnabled,
+  aiCoachEnabled,
+  settingsLoading,
+} = useUserSettings();
 
   const [sidebarOpen, setSidebarOpen] =
     useState(false);
@@ -207,16 +216,25 @@ function ProtectedApp() {
       : email.charAt(0).toUpperCase();
 
   const visibleNavigationItems =
-    navigationItems.filter((item) => {
-      if (
-        item.requiresMultipleAccounts &&
-        !multipleAccountsEnabled
-      ) {
-        return false;
-      }
+  navigationItems.filter((item) => {
+    if (
+      item.requiresMultipleAccounts &&
+      !multipleAccountsEnabled
+    ) {
+      return false;
+    }
 
-      return true;
-    });
+    if (
+      item.requiresAICoach &&
+      !aiCoachEnabled &&
+      !isAdmin
+    ) {
+      return false;
+    }
+
+    return true;
+  });
+  
 
   function closeSidebar() {
     setSidebarOpen(false);
@@ -421,12 +439,13 @@ function ProtectedApp() {
             path="/calendar"
             element={<Calendar />}
           />
+  
 
           <Route
             path="/settings"
             element={<Settings />}
           />
-
+       
           <Route
             path="/admin"
             element={
@@ -447,7 +466,19 @@ function ProtectedApp() {
               )
             }
           />
-
+   <Route
+  path="/ai-coach"
+  element={
+    aiCoachEnabled || isAdmin ? (
+      <AICoach />
+    ) : (
+      <Navigate
+        to="/dashboard"
+        replace
+      />
+    )
+  }
+/>
           <Route
             path="*"
             element={
