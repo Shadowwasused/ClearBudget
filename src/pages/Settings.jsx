@@ -3,11 +3,14 @@ import {
   FiBell,
   FiCalendar,
   FiCheck,
+  FiCreditCard,
   FiDollarSign,
   FiRefreshCw,
   FiSave,
   FiSettings,
 } from "react-icons/fi";
+
+import { useUserSettings } from "../context/UserSettingsContext";
 
 import {
   defaultSettings,
@@ -16,6 +19,12 @@ import {
 } from "../lib/settingsApi";
 
 function Settings() {
+  const {
+    multipleAccountsEnabled,
+    updateSetting,
+    settingsLoading,
+  } = useUserSettings();
+
   const [settings, setSettings] = useState(
     defaultSettings,
   );
@@ -25,6 +34,9 @@ function Settings() {
   const [message, setMessage] = useState("");
   const [errorMessage, setErrorMessage] =
     useState("");
+
+  const [accountsSaving, setAccountsSaving] =
+    useState(false);
 
   useEffect(() => {
     let active = true;
@@ -96,6 +108,39 @@ function Settings() {
     setErrorMessage("");
   }
 
+  async function handleMultipleAccountsToggle() {
+    try {
+      setAccountsSaving(true);
+      setMessage("");
+      setErrorMessage("");
+
+      const nextValue = !multipleAccountsEnabled;
+
+      await updateSetting(
+        "multiple_accounts",
+        nextValue,
+      );
+
+      setMessage(
+        nextValue
+          ? "Multiple account tracking enabled."
+          : "Multiple account tracking disabled.",
+      );
+    } catch (error) {
+      console.error(
+        "Unable to update multiple account tracking:",
+        error,
+      );
+
+      setErrorMessage(
+        error?.message ||
+          "Unable to update account tracking.",
+      );
+    } finally {
+      setAccountsSaving(false);
+    }
+  }
+
   async function handleSubmit(event) {
     event.preventDefault();
 
@@ -136,19 +181,23 @@ function Settings() {
 
     setSettings({ ...defaultSettings });
     applyTheme(defaultSettings.theme);
+
     setMessage(
       "Defaults restored. Select Save settings to keep them.",
     );
+
     setErrorMessage("");
   }
 
-  if (loading) {
+  if (loading || settingsLoading) {
     return (
       <div className="page-content">
         <section className="content-card">
           <div className="goal-empty-state">
             <FiSettings />
+
             <strong>Loading settings...</strong>
+
             <span>
               Retrieving your preferences from
               Supabase.
@@ -385,12 +434,55 @@ function Settings() {
           </div>
         </section>
 
+        <section className="content-card">
+          <div className="modal-header">
+            <div>
+              <p className="page-eyebrow">
+                Advanced features
+              </p>
+
+              <h2>Account tracking</h2>
+            </div>
+
+            <FiCreditCard />
+          </div>
+
+          <div className="transaction-form">
+            <label className="form-field form-field-full">
+              <span>
+                <strong>Multiple accounts</strong>
+              </span>
+
+              <span>
+                {multipleAccountsEnabled
+                  ? "Account tracking is enabled. The Accounts page and account fields can be shown."
+                  : "Account tracking is disabled. Income and expenses can be entered without selecting an account."}
+              </span>
+
+              <input
+                type="checkbox"
+                checked={multipleAccountsEnabled}
+                onChange={
+                  handleMultipleAccountsToggle
+                }
+                disabled={accountsSaving}
+              />
+            </label>
+          </div>
+
+          {accountsSaving && (
+            <p className="page-description">
+              Saving account preference...
+            </p>
+          )}
+        </section>
+
         <div className="modal-actions">
           <button
             className="secondary-button button-with-icon"
             type="button"
             onClick={restoreDefaults}
-            disabled={saving}
+            disabled={saving || accountsSaving}
           >
             <FiRefreshCw />
             Restore defaults
@@ -399,9 +491,10 @@ function Settings() {
           <button
             className="primary-button button-with-icon"
             type="submit"
-            disabled={saving}
+            disabled={saving || accountsSaving}
           >
             <FiSave />
+
             {saving
               ? "Saving..."
               : "Save settings"}

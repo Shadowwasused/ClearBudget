@@ -16,16 +16,18 @@ import {
   FiMenu,
   FiPieChart,
   FiSettings,
+  FiShield,
   FiTarget,
   FiX,
 } from "react-icons/fi";
 
 import { useAuth } from "./context/AuthContext";
+import { useUserSettings } from "./context/UserSettingsContext";
 
 import Login from "./pages/auth/Login";
 import Signup from "./pages/auth/Signup";
 import LandingPage from "./pages/LandingPage";
-
+import Admin from "./pages/Admin";
 import Dashboard from "./pages/Dashboard";
 import Transactions from "./pages/Transactions";
 import Bills from "./pages/Bills";
@@ -50,6 +52,7 @@ const navigationItems = [
     name: "Accounts",
     path: "/accounts",
     icon: FiCreditCard,
+    requiresMultipleAccounts: true,
   },
   {
     name: "Transactions",
@@ -105,25 +108,27 @@ function App() {
   return (
     <Routes>
       <Route
-  path="/onboarding"
-  element={
-    user ? (
-      <Onboarding />
-    ) : (
-      <Navigate to="/login" replace />
-    )
-  }
-/>
+        path="/onboarding"
+        element={
+          user ? (
+            <Onboarding />
+          ) : (
+            <Navigate to="/login" replace />
+          )
+        }
+      />
+
       <Route
-  path="/beta-welcome"
-  element={
-    user ? (
-      <BetaWelcome />
-    ) : (
-      <Navigate to="/login" replace />
-    )
-  }
-/>
+        path="/beta-welcome"
+        element={
+          user ? (
+            <BetaWelcome />
+          ) : (
+            <Navigate to="/login" replace />
+          )
+        }
+      />
+
       <Route
         path="/"
         element={<LandingPage user={user} />}
@@ -150,10 +155,12 @@ function App() {
           )
         }
       />
-<Route
-  path="/auth/callback"
-  element={<AuthCallback />}
-/>
+
+      <Route
+        path="/auth/callback"
+        element={<AuthCallback />}
+      />
+
       <Route
         path="/*"
         element={
@@ -169,19 +176,47 @@ function App() {
 }
 
 function ProtectedApp() {
-  const { user, signOut } = useAuth();
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [signingOut, setSigningOut] = useState(false);
+  const {
+    user,
+    profileLoading,
+    isAdmin,
+    signOut,
+  } = useAuth();
+
+  const {
+    multipleAccountsEnabled,
+    settingsLoading,
+  } = useUserSettings();
+
+  const [sidebarOpen, setSidebarOpen] =
+    useState(false);
+
+  const [signingOut, setSigningOut] =
+    useState(false);
 
   const fullName =
-    user?.user_metadata?.full_name?.trim() || "My Account";
+    user?.user_metadata?.full_name?.trim() ||
+    "My Account";
 
-  const email = user?.email || "Personal workspace";
+  const email =
+    user?.email || "Personal workspace";
 
   const profileInitial =
     fullName !== "My Account"
       ? fullName.charAt(0).toUpperCase()
       : email.charAt(0).toUpperCase();
+
+  const visibleNavigationItems =
+    navigationItems.filter((item) => {
+      if (
+        item.requiresMultipleAccounts &&
+        !multipleAccountsEnabled
+      ) {
+        return false;
+      }
+
+      return true;
+    });
 
   function closeSidebar() {
     setSidebarOpen(false);
@@ -193,10 +228,28 @@ function ProtectedApp() {
     try {
       await signOut();
     } catch (error) {
-      console.error("Unable to sign out:", error);
-      alert("You could not be signed out. Please try again.");
+      console.error(
+        "Unable to sign out:",
+        error,
+      );
+
+      alert(
+        "You could not be signed out. Please try again.",
+      );
+
       setSigningOut(false);
     }
+  }
+
+  if (settingsLoading) {
+    return (
+      <div className="auth-page">
+        <div className="auth-card">
+          <h1>ClearBudget</h1>
+          <p>Loading your preferences...</p>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -247,25 +300,42 @@ function ProtectedApp() {
         </div>
 
         <nav className="sidebar-navigation">
-          {navigationItems.map((item) => {
-            const Icon = item.icon;
+          {visibleNavigationItems.map(
+            (item) => {
+              const Icon = item.icon;
 
-            return (
-              <NavLink
-                key={item.path}
-                to={item.path}
-                onClick={closeSidebar}
-                className={({ isActive }) =>
-                  isActive
-                    ? "nav-link nav-link-active"
-                    : "nav-link"
-                }
-              >
-                <Icon />
-                <span>{item.name}</span>
-              </NavLink>
-            );
-          })}
+              return (
+                <NavLink
+                  key={item.path}
+                  to={item.path}
+                  onClick={closeSidebar}
+                  className={({ isActive }) =>
+                    isActive
+                      ? "nav-link nav-link-active"
+                      : "nav-link"
+                  }
+                >
+                  <Icon />
+                  <span>{item.name}</span>
+                </NavLink>
+              );
+            },
+          )}
+
+          {isAdmin && (
+            <NavLink
+              to="/admin"
+              onClick={closeSidebar}
+              className={({ isActive }) =>
+                isActive
+                  ? "nav-link nav-link-active"
+                  : "nav-link"
+              }
+            >
+              <FiShield />
+              <span>Admin</span>
+            </NavLink>
+          )}
         </nav>
 
         <div className="sidebar-footer">
@@ -295,7 +365,12 @@ function ProtectedApp() {
         <Routes>
           <Route
             path="/"
-            element={<Navigate to="/dashboard" replace />}
+            element={
+              <Navigate
+                to="/dashboard"
+                replace
+              />
+            }
           />
 
           <Route
@@ -305,7 +380,16 @@ function ProtectedApp() {
 
           <Route
             path="/accounts"
-            element={<Accounts />}
+            element={
+              multipleAccountsEnabled ? (
+                <Accounts />
+              ) : (
+                <Navigate
+                  to="/dashboard"
+                  replace
+                />
+              )
+            }
           />
 
           <Route
@@ -344,11 +428,38 @@ function ProtectedApp() {
           />
 
           <Route
+            path="/admin"
+            element={
+              profileLoading ? (
+                <div className="page-content">
+                  <p>
+                    Checking administrator
+                    access...
+                  </p>
+                </div>
+              ) : isAdmin ? (
+                <Admin />
+              ) : (
+                <Navigate
+                  to="/dashboard"
+                  replace
+                />
+              )
+            }
+          />
+
+          <Route
             path="*"
-            element={<Navigate to="/dashboard" replace />}
+            element={
+              <Navigate
+                to="/dashboard"
+                replace
+              />
+            }
           />
         </Routes>
       </main>
+
       <FeedbackWidget />
     </div>
   );

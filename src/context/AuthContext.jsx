@@ -4,67 +4,123 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 
 import { supabase } from "../lib/supabase";
+import { fetchMyProfile } from "../lib/profileApi";
 
 const AuthContext = createContext(null);
-
-const SESSION_TIMEOUT_MS = 8000;
-
-function withTimeout(promise, milliseconds) {
-  return Promise.race([
-    promise,
-    new Promise((_, reject) => {
-      window.setTimeout(() => {
-        reject(
-          new Error(
-            "Supabase session loading timed out.",
-          ),
-        );
-      }, milliseconds);
-    }),
-  ]);
-}
 
 export function AuthProvider({ children }) {
   const [session, setSession] = useState(null);
   const [user, setUser] = useState(null);
+  const [profile, setProfile] = useState(null);
+
   const [loading, setLoading] = useState(true);
+  const [profileLoading, setProfileLoading] =
+    useState(true);
+
+  /*
+   * Each profile request receives a number.
+   * Older requests cannot overwrite a newer result.
+   */
+  const profileRequestId = useRef(0);
+
+  const loadProfile = useCallback(async (userId) => {
+    const requestId = ++profileRequestId.current;
+
+    if (!userId) {
+      setProfile(null);
+      setProfileLoading(false);
+      return null;
+    }
+
+    try {
+      setProfileLoading(true);
+
+      const currentProfile =
+        await fetchMyProfile(userId);
+
+      if (requestId !== profileRequestId.current) {
+        return null;
+      }
+
+      setProfile(currentProfile);
+
+      return currentProfile;
+    } catch (error) {
+      console.error(
+        "Unable to load ClearBudget profile:",
+        error,
+      );
+
+      /*
+       * Do not erase an already loaded admin profile
+       * because of a temporary network or duplicate-request
+       * failure.
+       */
+      if (requestId === profileRequestId.current) {
+        setProfile((current) => current);
+      }
+
+      return null;
+    } finally {
+      if (requestId === profileRequestId.current) {
+        setProfileLoading(false);
+      }
+    }
+  }, []);
+
+  const applySession = useCallback(
+    async (nextSession) => {
+      const nextUser = nextSession?.user ?? null;
+
+      setSession(nextSession ?? null);
+      setUser(nextUser);
+
+      if (nextUser?.id) {
+        await loadProfile(nextUser.id);
+      } else {
+        profileRequestId.current += 1;
+        setProfile(null);
+        setProfileLoading(false);
+      }
+    },
+    [loadProfile],
+  );
 
   useEffect(() => {
     let active = true;
 
-    async function loadSession() {
+    async function initializeAuthentication() {
       try {
-        const response = await withTimeout(
-          supabase.auth.getSession(),
-          SESSION_TIMEOUT_MS,
-        );
+        const {
+          data: { session: initialSession },
+          error,
+        } = await supabase.auth.getSession();
+
+        if (error) {
+          throw error;
+        }
 
         if (!active) {
           return;
         }
 
-        if (response.error) {
-          throw response.error;
-        }
-
-        const currentSession =
-          response.data?.session ?? null;
-
-        setSession(currentSession);
-        setUser(currentSession?.user ?? null);
+        await applySession(initialSession);
       } catch (error) {
         console.error(
-          "Unable to load Supabase session:",
+          "Unable to initialize authentication:",
           error,
         );
 
         if (active) {
           setSession(null);
           setUser(null);
+          setProfile(null);
+          setProfileLoading(false);
         }
       } finally {
         if (active) {
@@ -73,34 +129,36 @@ export function AuthProvider({ children }) {
       }
     }
 
-    loadSession();
+    initializeAuthentication();
 
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(
-      (_event, nextSession) => {
+      async (_event, nextSession) => {
         if (!active) {
           return;
         }
 
-        setSession(nextSession);
-        setUser(nextSession?.user ?? null);
-        setLoading(false);
+        /*
+         * Complete session/profile updates together.
+         */
+        await applySession(nextSession);
+
+        if (active) {
+          setLoading(false);
+        }
       },
     );
 
     return () => {
       active = false;
+      profileRequestId.current += 1;
       subscription.unsubscribe();
     };
-  }, []);
+  }, [applySession]);
 
   const signUp = useCallback(
     async ({ email, password, fullName }) => {
-      const redirectBaseUrl =
-        import.meta.env.VITE_APP_URL ||
-        window.location.origin;
-
       const { data, error } =
         await supabase.auth.signUp({
           email: email.trim(),
@@ -110,7 +168,7 @@ export function AuthProvider({ children }) {
               full_name: fullName.trim(),
             },
             emailRedirectTo:
-              `${redirectBaseUrl}/auth/callback`,
+              "https://www.clearbudgetapp.com/auth/callback",
           },
         });
 
@@ -146,20 +204,21 @@ export function AuthProvider({ children }) {
     if (error) {
       throw error;
     }
+
+    setSession(null);
+    setUser(null);
+    setProfile(null);
+    setProfileLoading(false);
   }, []);
 
   const resetPassword = useCallback(
     async (email) => {
-      const redirectBaseUrl =
-        import.meta.env.VITE_APP_URL ||
-        window.location.origin;
-
       const { data, error } =
         await supabase.auth.resetPasswordForEmail(
           email.trim(),
           {
             redirectTo:
-              `${redirectBaseUrl}/reset-password`,
+              "https://www.clearbudgetapp.com/reset-password",
           },
         );
 
@@ -172,11 +231,25 @@ export function AuthProvider({ children }) {
     [],
   );
 
+  const refreshProfile = useCallback(async () => {
+    if (!user?.id) {
+      return null;
+    }
+
+    return loadProfile(user.id);
+  }, [user?.id, loadProfile]);
+
+  const isAdmin = profile?.role === "admin";
+
   const value = useMemo(
     () => ({
       session,
       user,
+      profile,
       loading,
+      profileLoading,
+      isAdmin,
+      refreshProfile,
       signUp,
       signIn,
       signOut,
@@ -185,7 +258,11 @@ export function AuthProvider({ children }) {
     [
       session,
       user,
+      profile,
       loading,
+      profileLoading,
+      isAdmin,
+      refreshProfile,
       signUp,
       signIn,
       signOut,

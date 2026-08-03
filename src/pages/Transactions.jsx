@@ -23,6 +23,7 @@ import {
   updateTransaction,
 } from "../lib/transactionsApi";
 import { fetchAccounts } from "../lib/accountsApi";
+import { useUserSettings } from "../context/UserSettingsContext";
 
 const defaultForm = {
   description: "",
@@ -36,6 +37,8 @@ const defaultForm = {
 };
 
 function Transactions() {
+  const { multipleAccountsEnabled } = useUserSettings();
+
   const [transactions, setTransactions] = useState([]);
   const [form, setForm] = useState(defaultForm);
   const [editingId, setEditingId] = useState(null);
@@ -52,39 +55,50 @@ function Transactions() {
   const [saving, setSaving] = useState(false);
   const [deletingId, setDeletingId] = useState(null);
   const [loadError, setLoadError] = useState("");
-useEffect(() => {
-  let active = true;
+  useEffect(() => {
+    let active = true;
 
-  async function loadAccounts() {
-    try {
-      setAccountsLoading(true);
-
-      const data = await fetchAccounts();
-
-      if (!active) {
+    async function loadAccounts() {
+      if (!multipleAccountsEnabled) {
+        setAccountOptions([]);
+        setAccountFilter("all");
+        setAccountsLoading(false);
         return;
       }
 
-      const activeAccounts = (data || []).filter(
-        (account) => !account.is_archived,
-      );
+      try {
+        setAccountsLoading(true);
 
-      setAccountOptions(activeAccounts);
-    } catch (error) {
-      console.error("Unable to load accounts:", error);
-    } finally {
-      if (active) {
-        setAccountsLoading(false);
+        const data = await fetchAccounts();
+
+        if (!active) {
+          return;
+        }
+
+        const activeAccounts = (data || []).filter(
+          (account) => !account.is_archived,
+        );
+
+        setAccountOptions(activeAccounts);
+      } catch (error) {
+        console.error("Unable to load accounts:", error);
+
+        if (active) {
+          setAccountOptions([]);
+        }
+      } finally {
+        if (active) {
+          setAccountsLoading(false);
+        }
       }
     }
-  }
 
-  loadAccounts();
+    loadAccounts();
 
-  return () => {
-    active = false;
-  };
-}, []);
+    return () => {
+      active = false;
+    };
+  }, [multipleAccountsEnabled]);
   useEffect(() => {
     let active = true;
 
@@ -158,9 +172,11 @@ useEffect(() => {
         const matchesSearch =
           description.includes(searchText) ||
           category.includes(searchText) ||
-          account.includes(searchText);
+          (multipleAccountsEnabled &&
+            account.includes(searchText));
 
         const matchesAccount =
+          !multipleAccountsEnabled ||
           accountFilter === "all" ||
           transaction.account === accountFilter;
 
@@ -189,6 +205,7 @@ useEffect(() => {
     accountFilter,
     categoryFilter,
     typeFilter,
+    multipleAccountsEnabled,
   ]);
 
   const totals = useMemo(
@@ -248,8 +265,12 @@ useEffect(() => {
       amount: String(transaction.amount || ""),
       date: transaction.date,
       category: transaction.category || "Groceries",
-      account: transaction.account || "",
-      accountId: transaction.accountId || "",
+      account: multipleAccountsEnabled
+        ? transaction.account || ""
+        : "",
+      accountId: multipleAccountsEnabled
+        ? transaction.accountId || ""
+        : "",
       type: transaction.type || "expense",
       notes: transaction.notes || "",
     });
@@ -297,27 +318,40 @@ useEffect(() => {
       return;
     }
 
-    
-    const selectedAccount = accountOptions.find(
-      (account) =>
-        String(account.id) === String(form.accountId),
-    );
+    let selectedAccount = null;
 
-if (!selectedAccount) {
-  alert("Please select an account.");
-  return;
-}
+    if (multipleAccountsEnabled) {
+      selectedAccount = accountOptions.find(
+        (account) =>
+          String(account.id) === String(form.accountId),
+      );
 
-const transactionData = {
-  description: cleanedDescription,
-  amount: numericAmount,
-  date: form.date,
-  category: form.category,
-  accountId: selectedAccount.id,
-  account: selectedAccount.name,
-  type: form.type,
-  notes: form.notes.trim(),
-};
+      if (!selectedAccount) {
+        alert("Please select an account.");
+        return;
+      }
+    }
+
+    const existingTransaction = editingId
+      ? transactions.find(
+          (transaction) => transaction.id === editingId,
+        )
+      : null;
+
+    const transactionData = {
+      description: cleanedDescription,
+      amount: numericAmount,
+      date: form.date,
+      category: form.category,
+      accountId: multipleAccountsEnabled
+        ? selectedAccount.id
+        : existingTransaction?.accountId || null,
+      account: multipleAccountsEnabled
+        ? selectedAccount.name
+        : existingTransaction?.account || "",
+      type: form.type,
+      notes: form.notes.trim(),
+    };
 
     try {
       setSaving(true);
@@ -412,8 +446,9 @@ const transactionData = {
           <h1>Transactions</h1>
 
           <p className="page-description">
-            Add, review, search, and categorize your income and
-            purchases.
+            {multipleAccountsEnabled
+              ? "Add, review, search, categorize, and assign your income and purchases to accounts."
+              : "Add, review, search, and categorize your income and purchases without selecting an account."}
           </p>
         </div>
 
@@ -495,7 +530,7 @@ const transactionData = {
               <th>Date</th>
               <th>Description</th>
               <th>Category</th>
-              <th>Account</th>
+              {multipleAccountsEnabled && <th>Account</th>}
               <th>Type</th>
               <th className="transactions-print-amount">Amount</th>
             </tr>
@@ -515,7 +550,11 @@ const transactionData = {
                     )}
                   </td>
                   <td>{transaction.category || "Other"}</td>
-                  <td>{transaction.account || "Unassigned"}</td>
+                  {multipleAccountsEnabled && (
+                    <td>
+                      {transaction.account || "Unassigned"}
+                    </td>
+                  )}
                   <td className="transactions-print-type">
                     {transaction.type === "income" ? "Income" : "Expense"}
                   </td>
@@ -527,7 +566,10 @@ const transactionData = {
               ))
             ) : (
               <tr>
-                <td className="transactions-print-empty" colSpan="6">
+                <td
+                  className="transactions-print-empty"
+                  colSpan={multipleAccountsEnabled ? 6 : 5}
+                >
                   No transactions match the current filters.
                 </td>
               </tr>
@@ -600,20 +642,25 @@ const transactionData = {
             />
           </div>
 
-          <select
-            value={accountFilter}
-            onChange={(event) =>
-              setAccountFilter(event.target.value)
-            }
-          >
-            <option value="all">All accounts</option>
+          {multipleAccountsEnabled && (
+            <select
+              value={accountFilter}
+              onChange={(event) =>
+                setAccountFilter(event.target.value)
+              }
+            >
+              <option value="all">All accounts</option>
 
-            {accountOptions.map((account) => (
-  <option key={account.id} value={account.name}>
-    {account.name}
-  </option>
-))}
-          </select>
+              {accountOptions.map((account) => (
+                <option
+                  key={account.id}
+                  value={account.name}
+                >
+                  {account.name}
+                </option>
+              ))}
+            </select>
+          )}
 
           <select
             value={categoryFilter}
@@ -660,7 +707,9 @@ const transactionData = {
                 <th>Date</th>
                 <th>Description</th>
                 <th>Category</th>
-                <th>Account</th>
+                {multipleAccountsEnabled && (
+                  <th>Account</th>
+                )}
                 <th>Type</th>
 
                 <th className="table-amount-heading">
@@ -678,7 +727,9 @@ const transactionData = {
                 <tr>
                   <td
                     className="table-empty-state"
-                    colSpan="7"
+                    colSpan={
+                      multipleAccountsEnabled ? 7 : 6
+                    }
                   >
                     Loading transactions from Supabase...
                   </td>
@@ -710,9 +761,11 @@ const transactionData = {
                       </span>
                     </td>
 
-                    <td>
-                      {transaction.account || "Unassigned"}
-                    </td>
+                    {multipleAccountsEnabled && (
+                      <td>
+                        {transaction.account || "Unassigned"}
+                      </td>
+                    )}
 
                     <td>
                       <span
@@ -779,7 +832,9 @@ const transactionData = {
                 <tr>
                   <td
                     className="table-empty-state"
-                    colSpan="7"
+                    colSpan={
+                      multipleAccountsEnabled ? 7 : 6
+                    }
                   >
                     No transactions match your filters.
                   </td>
@@ -917,44 +972,53 @@ const transactionData = {
                 </select>
               </div>
 
-              <div className="form-field">
-                <label htmlFor="transaction-account">
-                  Account
-                </label>
+              {multipleAccountsEnabled && (
+                <div className="form-field">
+                  <label htmlFor="transaction-account">
+                    Account
+                  </label>
 
-                <select
-                  id="transaction-account"
-                  name="accountId"
-                  value={form.accountId || ""}
-                  onChange={(event) => {
-                    const selectedId = event.target.value;
+                  <select
+                    id="transaction-account"
+                    name="accountId"
+                    value={form.accountId || ""}
+                    onChange={(event) => {
+                      const selectedId =
+                        event.target.value;
 
-                    const selectedAccount = accountOptions.find(
-                      (account) =>
-                        String(account.id) === String(selectedId),
-                    );
+                      const selectedAccount =
+                        accountOptions.find(
+                          (account) =>
+                            String(account.id) ===
+                            String(selectedId),
+                        );
 
-                    setForm((currentForm) => ({
-                      ...currentForm,
-                      accountId: selectedId,
-                      account: selectedAccount?.name || "",
-                    }));
-                  }}
-                  disabled={saving || accountsLoading}
-                >
-                  <option value="">
-                    {accountsLoading
-                      ? "Loading accounts..."
-                      : "Select an account"}
-                  </option>
-
-                  {accountOptions.map((account) => (
-                    <option key={account.id} value={account.id}>
-                      {account.name}
+                      setForm((currentForm) => ({
+                        ...currentForm,
+                        accountId: selectedId,
+                        account:
+                          selectedAccount?.name || "",
+                      }));
+                    }}
+                    disabled={saving || accountsLoading}
+                  >
+                    <option value="">
+                      {accountsLoading
+                        ? "Loading accounts..."
+                        : "Select an account"}
                     </option>
-                  ))}
-                </select>
-              </div>
+
+                    {accountOptions.map((account) => (
+                      <option
+                        key={account.id}
+                        value={account.id}
+                      >
+                        {account.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
 
               <div className="form-field form-field-full">
                 <label>Transaction type</label>

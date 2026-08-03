@@ -8,12 +8,12 @@ import {
 } from "react-icons/fi";
 
 import {
-  calculateTransactionTotals,
   formatCurrency,
   formatTransactionDate,
   getMonthlyTotals,
   getRecentTransactions,
 } from "../lib/transactions";
+
 import {
   calculateBudgetDetails,
   formatBudgetCurrency,
@@ -32,13 +32,22 @@ import { fetchTransactions } from "../lib/transactionsApi";
 import { fetchBills } from "../lib/billsApi";
 import { fetchAccounts } from "../lib/accountsApi";
 
+import { useUserSettings } from "../context/UserSettingsContext";
+
 function Dashboard() {
-  const [transactions, setTransactions] = useState([]);
+  const { multipleAccountsEnabled } =
+    useUserSettings();
+
+  const [transactions, setTransactions] =
+    useState([]);
+
   const [bills, setBills] = useState([]);
   const [accounts, setAccounts] = useState([]);
-const [budgets, setBudgets] = useState([]);
+  const [budgets, setBudgets] = useState([]);
+
   const [loading, setLoading] = useState(true);
-  const [loadError, setLoadError] = useState("");
+  const [loadError, setLoadError] =
+    useState("");
 
   useEffect(() => {
     let active = true;
@@ -49,16 +58,18 @@ const [budgets, setBudgets] = useState([]);
         setLoadError("");
 
         const [
-  transactionData,
-  billData,
-  accountData,
-  budgetData,
-] = await Promise.all([
-  fetchTransactions(),
-  fetchBills(),
-  fetchAccounts(),
-  fetchBudgets(),
-]);
+          transactionData,
+          billData,
+          accountData,
+          budgetData,
+        ] = await Promise.all([
+          fetchTransactions(),
+          fetchBills(),
+          multipleAccountsEnabled
+            ? fetchAccounts()
+            : Promise.resolve([]),
+          fetchBudgets(),
+        ]);
 
         if (!active) {
           return;
@@ -91,12 +102,19 @@ const [budgets, setBudgets] = useState([]);
     return () => {
       active = false;
     };
-  }, []);
+  }, [multipleAccountsEnabled]);
 
-  const currentDate = useMemo(() => new Date(), []);
+  const currentDate = useMemo(
+    () => new Date(),
+    [],
+  );
 
   const monthlyTotals = useMemo(
-    () => getMonthlyTotals(transactions, currentDate),
+    () =>
+      getMonthlyTotals(
+        transactions,
+        currentDate,
+      ),
     [transactions, currentDate],
   );
 
@@ -147,21 +165,35 @@ const [budgets, setBudgets] = useState([]);
         0,
       );
   }, [activeAccounts]);
+
+  const netCashFlow =
+    Number(monthlyTotals.income || 0) -
+    Number(monthlyTotals.expenses || 0);
+
+  const savingsRate =
+    Number(monthlyTotals.income || 0) > 0
+      ? Math.round(
+          (netCashFlow /
+            Number(monthlyTotals.income || 0)) *
+            100,
+        )
+      : 0;
+
   const budgetDetails = useMemo(() => {
-  return budgets
-    .map((budget) =>
-      calculateBudgetDetails(
-        budget,
-        transactions,
-        currentDate,
-      ),
-    )
-    .sort(
-      (firstBudget, secondBudget) =>
-        secondBudget.percentage -
-        firstBudget.percentage,
-    );
-}, [budgets, transactions, currentDate]);
+    return budgets
+      .map((budget) =>
+        calculateBudgetDetails(
+          budget,
+          transactions,
+          currentDate,
+        ),
+      )
+      .sort(
+        (firstBudget, secondBudget) =>
+          secondBudget.percentage -
+          firstBudget.percentage,
+      );
+  }, [budgets, transactions, currentDate]);
 
   const unpaidBillTotal = useMemo(() => {
     return bills
@@ -253,8 +285,9 @@ const [budgets, setBudgets] = useState([]);
           <h1>Dashboard</h1>
 
           <p className="page-description">
-            Review your accounts, monthly activity,
-            upcoming bills, and recent transactions.
+            {multipleAccountsEnabled
+              ? "Review your accounts, monthly activity, upcoming bills, and recent transactions."
+              : "Review your monthly income, spending, budgets, bills, and recent transactions."}
           </p>
         </div>
 
@@ -275,35 +308,43 @@ const [budgets, setBudgets] = useState([]);
       )}
 
       <div className="summary-grid">
-        <SummaryCard
-          title="Net worth"
-          value={formatCurrency(netWorth)}
-          change={`${activeAccounts.length} active ${
-            activeAccounts.length === 1
-              ? "account"
-              : "accounts"
-          }`}
-          valueClass={
-            netWorth >= 0
-              ? "money-positive"
-              : "money-negative"
-          }
-        />
+        {multipleAccountsEnabled && (
+          <>
+            <SummaryCard
+              title="Net worth"
+              value={formatCurrency(netWorth)}
+              change={`${activeAccounts.length} active ${
+                activeAccounts.length === 1
+                  ? "account"
+                  : "accounts"
+              }`}
+              valueClass={
+                netWorth >= 0
+                  ? "money-positive"
+                  : "money-negative"
+              }
+            />
 
-        <SummaryCard
-          title="Cash available"
-          value={formatCurrency(cashAvailable)}
-          change="Checking, savings, and cash"
-          valueClass={
-            cashAvailable >= 0
-              ? "money-positive"
-              : "money-negative"
-          }
-        />
+            <SummaryCard
+              title="Cash available"
+              value={formatCurrency(
+                cashAvailable,
+              )}
+              change="Checking, savings, and cash"
+              valueClass={
+                cashAvailable >= 0
+                  ? "money-positive"
+                  : "money-negative"
+              }
+            />
+          </>
+        )}
 
         <SummaryCard
           title="Income this month"
-          value={formatCurrency(monthlyTotals.income)}
+          value={formatCurrency(
+            monthlyTotals.income,
+          )}
           change={monthName}
           valueClass="money-positive"
         />
@@ -316,45 +357,78 @@ const [budgets, setBudgets] = useState([]);
           change={monthName}
           valueClass="money-negative"
         />
+
+        {!multipleAccountsEnabled && (
+          <>
+            <SummaryCard
+              title="Net cash flow"
+              value={formatCurrency(
+                netCashFlow,
+              )}
+              change="Income minus expenses"
+              valueClass={
+                netCashFlow >= 0
+                  ? "money-positive"
+                  : "money-negative"
+              }
+            />
+
+            <SummaryCard
+              title="Savings rate"
+              value={`${savingsRate}%`}
+              change={monthName}
+              valueClass={
+                savingsRate >= 0
+                  ? "money-positive"
+                  : "money-negative"
+              }
+            />
+          </>
+        )}
       </div>
 
-      <section className="content-card dashboard-accounts-card">
-        <div className="card-heading">
-          <div>
-            <p className="card-label">
-              Financial accounts
-            </p>
+      {multipleAccountsEnabled && (
+        <section className="content-card dashboard-accounts-card">
+          <div className="card-heading">
+            <div>
+              <p className="card-label">
+                Financial accounts
+              </p>
 
-            <h2>Your accounts</h2>
+              <h2>Your accounts</h2>
+            </div>
+
+            <NavLink
+              className="text-link"
+              to="/accounts"
+            >
+              Manage accounts
+            </NavLink>
           </div>
 
-          <NavLink className="text-link" to="/accounts">
-            Manage accounts
-          </NavLink>
-        </div>
+          {activeAccounts.length > 0 ? (
+            <div className="dashboard-account-grid">
+              {activeAccounts.map((account) => (
+                <DashboardAccountCard
+                  key={account.id}
+                  account={account}
+                />
+              ))}
+            </div>
+          ) : (
+            <div className="dashboard-empty-state">
+              <FiCreditCard />
 
-        {activeAccounts.length > 0 ? (
-          <div className="dashboard-account-grid">
-            {activeAccounts.map((account) => (
-              <DashboardAccountCard
-                key={account.id}
-                account={account}
-              />
-            ))}
-          </div>
-        ) : (
-          <div className="dashboard-empty-state">
-            <FiCreditCard />
+              <strong>No accounts added</strong>
 
-            <strong>No accounts added</strong>
-
-            <span>
-              Add an account to begin tracking your
-              net worth.
-            </span>
-          </div>
-        )}
-      </section>
+              <span>
+                Add an account to begin tracking your
+                net worth.
+              </span>
+            </div>
+          )}
+        </section>
+      )}
 
       <div className="dashboard-grid">
         <section className="content-card spending-card">
@@ -386,10 +460,14 @@ const [budgets, setBudgets] = useState([]);
                     key={item.category}
                   >
                     <div className="category-spending-heading">
-                      <span>{item.category}</span>
+                      <span>
+                        {item.category}
+                      </span>
 
                       <strong>
-                        {formatCurrency(item.amount)}
+                        {formatCurrency(
+                          item.amount,
+                        )}
                       </strong>
                     </div>
 
@@ -432,7 +510,10 @@ const [budgets, setBudgets] = useState([]);
               <h2>Upcoming bills</h2>
             </div>
 
-            <NavLink className="text-link" to="/bills">
+            <NavLink
+              className="text-link"
+              to="/bills"
+            >
               View all
             </NavLink>
           </div>
@@ -441,7 +522,9 @@ const [budgets, setBudgets] = useState([]);
             <span>Total unpaid</span>
 
             <strong>
-              {formatBillCurrency(unpaidBillTotal)}
+              {formatBillCurrency(
+                unpaidBillTotal,
+              )}
             </strong>
           </div>
 
@@ -460,46 +543,53 @@ const [budgets, setBudgets] = useState([]);
 
               <strong>All caught up</strong>
 
-              <span>You have no unpaid bills.</span>
+              <span>
+                You have no unpaid bills.
+              </span>
             </div>
           )}
         </section>
       </div>
-<section className="content-card dashboard-budget-section">
-  <div className="card-heading">
-    <div>
-      <p className="card-label">
-        Monthly spending limits
-      </p>
 
-      <h2>Budget progress</h2>
-    </div>
+      <section className="content-card dashboard-budget-section">
+        <div className="card-heading">
+          <div>
+            <p className="card-label">
+              Monthly spending limits
+            </p>
 
-    <NavLink className="text-link" to="/budget">
-      Manage budgets
-    </NavLink>
-  </div>
+            <h2>Budget progress</h2>
+          </div>
 
-  {budgetDetails.length > 0 ? (
-    <div className="dashboard-budget-list">
-      {budgetDetails.map((budget) => (
-        <DashboardBudgetItem
-          key={budget.id}
-          budget={budget}
-        />
-      ))}
-    </div>
-  ) : (
-    <div className="dashboard-empty-state">
-      <strong>No budgets created</strong>
+          <NavLink
+            className="text-link"
+            to="/budget"
+          >
+            Manage budgets
+          </NavLink>
+        </div>
 
-      <span>
-        Add monthly category budgets to track your
-        spending progress.
-      </span>
-    </div>
-  )}
-</section>
+        {budgetDetails.length > 0 ? (
+          <div className="dashboard-budget-list">
+            {budgetDetails.map((budget) => (
+              <DashboardBudgetItem
+                key={budget.id}
+                budget={budget}
+              />
+            ))}
+          </div>
+        ) : (
+          <div className="dashboard-empty-state">
+            <strong>No budgets created</strong>
+
+            <span>
+              Add monthly category budgets to track
+              your spending progress.
+            </span>
+          </div>
+        )}
+      </section>
+
       <section className="content-card">
         <div className="card-heading">
           <div>
@@ -525,6 +615,9 @@ const [budgets, setBudgets] = useState([]);
                 <TransactionItem
                   key={transaction.id}
                   transaction={transaction}
+                  multipleAccountsEnabled={
+                    multipleAccountsEnabled
+                  }
                 />
               ),
             )}
@@ -549,7 +642,9 @@ function SummaryCard({
     <section className="summary-card">
       <p>{title}</p>
 
-      <h2 className={valueClass}>{value}</h2>
+      <h2 className={valueClass}>
+        {value}
+      </h2>
 
       <span>{change}</span>
     </section>
@@ -561,7 +656,9 @@ function DashboardAccountCard({ account }) {
     account.account_type || "Account",
   );
 
-  const balance = Number(account.balance || 0);
+  const balance = Number(
+    account.balance || 0,
+  );
 
   return (
     <article
@@ -577,7 +674,6 @@ function DashboardAccountCard({ account }) {
 
       <div className="dashboard-account-details">
         <span>{accountType}</span>
-
         <strong>{account.name}</strong>
       </div>
 
@@ -593,9 +689,13 @@ function DashboardAccountCard({ account }) {
     </article>
   );
 }
+
 function DashboardBudgetItem({ budget }) {
   const visiblePercentage = Math.min(
-    Math.max(Number(budget.percentage || 0), 0),
+    Math.max(
+      Number(budget.percentage || 0),
+      0,
+    ),
     100,
   );
 
@@ -607,7 +707,8 @@ function DashboardBudgetItem({ budget }) {
     statusClass = "dashboard-budget-over";
   } else if (budget.percentage >= 80) {
     statusLabel = "Almost reached";
-    statusClass = "dashboard-budget-warning";
+    statusClass =
+      "dashboard-budget-warning";
   }
 
   return (
@@ -617,13 +718,20 @@ function DashboardBudgetItem({ budget }) {
           <strong>{budget.category}</strong>
 
           <span>
-            {formatBudgetCurrency(budget.spent)} of{" "}
-            {formatBudgetCurrency(budget.limit)}
+            {formatBudgetCurrency(
+              budget.spent,
+            )}{" "}
+            of{" "}
+            {formatBudgetCurrency(
+              budget.limit,
+            )}
           </span>
         </div>
 
         <div className="dashboard-budget-status">
-          <strong>{budget.percentage}%</strong>
+          <strong>
+            {budget.percentage}%
+          </strong>
 
           <span className={statusClass}>
             {statusLabel}
@@ -662,6 +770,7 @@ function DashboardBudgetItem({ budget }) {
     </article>
   );
 }
+
 function DashboardBillItem({ bill }) {
   const status = getBillStatus(bill);
 
@@ -695,7 +804,10 @@ function DashboardBillItem({ bill }) {
   );
 }
 
-function TransactionItem({ transaction }) {
+function TransactionItem({
+  transaction,
+  multipleAccountsEnabled,
+}) {
   const isIncome =
     transaction.type === "income";
 
@@ -715,9 +827,19 @@ function TransactionItem({ transaction }) {
         </strong>
 
         <span>
-          {transaction.category || "Other"} ·{" "}
-          {transaction.account || "Unassigned"} ·{" "}
-          {formatTransactionDate(transaction.date)}
+          {transaction.category || "Other"}
+
+          {multipleAccountsEnabled &&
+            ` · ${
+              transaction.account ||
+              "Unassigned"
+            }`}
+
+          {" · "}
+
+          {formatTransactionDate(
+            transaction.date,
+          )}
         </span>
       </div>
 
