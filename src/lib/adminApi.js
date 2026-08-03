@@ -32,6 +32,43 @@ export async function fetchAdminOverview() {
   };
 }
 
+export async function fetchAdminUsers() {
+  const { data, error } = await supabase.rpc(
+    "get_admin_users",
+  );
+
+  if (error) {
+    console.error(
+      "Unable to load admin users:",
+      error,
+    );
+
+    throw error;
+  }
+
+  return (data || []).map((user) => ({
+    id: user.id,
+    fullName: user.full_name || "Unnamed user",
+    email: user.email || "",
+    avatarUrl: user.avatar_url || "",
+    role: user.role || "user",
+accountStatus:
+  user.account_status || "active",
+emailVerified: Boolean(
+  user.email_verified,
+),
+    createdAt: user.created_at,
+    lastSignInAt: user.last_sign_in_at,
+    theme: user.theme || "role",
+    currency: user.currency || "USD",
+    dashboardPeriod:
+      user.dashboard_period || "month",
+    multipleAccounts: Boolean(
+      user.multiple_accounts,
+    ),
+  }));
+}
+
 export async function fetchAdminFeedback() {
   const { data, error } = await supabase
     .from("feedback")
@@ -88,4 +125,104 @@ export async function updateFeedbackStatus(
   }
 
   return data;
+}
+export async function updateAdminUserRole(
+  userId,
+  role,
+) {
+  if (!userId) {
+    throw new Error("A user ID is required.");
+  }
+
+  const allowedRoles = [
+    "user",
+    "admin",
+    "beta",
+    "premium",
+    "support",
+  ];
+
+  if (!allowedRoles.includes(role)) {
+    throw new Error("Invalid user role.");
+  }
+
+  const { data, error } = await supabase.rpc(
+    "update_admin_user_role",
+    {
+      target_user_id: userId,
+      new_role: role,
+    },
+  );
+
+  if (error) {
+    console.error(
+      "Unable to update user role:",
+      error,
+    );
+
+    throw error;
+  }
+
+  const updatedUser = Array.isArray(data)
+    ? data[0]
+    : data;
+
+  return {
+    id: updatedUser?.id,
+    fullName:
+      updatedUser?.full_name || "Unnamed user",
+    role: updatedUser?.role || role,
+    updatedAt: updatedUser?.updated_at,
+  };
+}
+export async function updateAdminUserStatus(
+  userId,
+  accountStatus,
+) {
+  if (!userId) {
+    throw new Error("A user ID is required.");
+  }
+
+  const allowedStatuses = [
+    "active",
+    "suspended",
+  ];
+
+  if (
+    !allowedStatuses.includes(accountStatus)
+  ) {
+    throw new Error(
+      "Invalid account status.",
+    );
+  }
+
+  const { data, error } = await supabase.rpc(
+    "update_admin_user_status",
+    {
+      target_user_id: userId,
+      new_status: accountStatus,
+    },
+  );
+
+  if (error) {
+    console.error(
+      "Unable to update user status:",
+      error,
+    );
+
+    throw error;
+  }
+
+  const updatedUser = Array.isArray(data)
+    ? data[0]
+    : data;
+
+  return {
+    id: updatedUser?.id,
+    accountStatus:
+      updatedUser?.account_status ||
+      accountStatus,
+    updatedAt:
+      updatedUser?.updated_at,
+  };
 }

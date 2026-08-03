@@ -7,7 +7,9 @@ export async function fetchMyProfile(userId) {
 
   const { data, error } = await supabase
     .from("profiles")
-    .select("id, full_name, role, created_at, updated_at")
+    .select(
+      "id, full_name, role, account_status, created_at, updated_at",
+    )
     .eq("id", userId)
     .maybeSingle();
 
@@ -23,6 +25,8 @@ export async function fetchMyProfile(userId) {
     id: data.id,
     fullName: data.full_name || "",
     role: data.role || "user",
+    accountStatus:
+      data.account_status || "active",
     createdAt: data.created_at,
     updatedAt: data.updated_at,
   };

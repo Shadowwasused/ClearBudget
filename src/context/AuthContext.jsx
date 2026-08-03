@@ -13,6 +13,9 @@ import { fetchMyProfile } from "../lib/profileApi";
 
 const AuthContext = createContext(null);
 
+const SUSPENDED_MESSAGE =
+  "Your ClearBudget account has been suspended. Please contact support if you believe this was a mistake.";
+
 export function AuthProvider({ children }) {
   const [session, setSession] = useState(null);
   const [user, setUser] = useState(null);
@@ -22,60 +25,113 @@ export function AuthProvider({ children }) {
   const [profileLoading, setProfileLoading] =
     useState(true);
 
+  const [authMessage, setAuthMessage] =
+    useState("");
+
   /*
    * Each profile request receives a number.
    * Older requests cannot overwrite a newer result.
    */
   const profileRequestId = useRef(0);
 
-  const loadProfile = useCallback(async (userId) => {
-    const requestId = ++profileRequestId.current;
+  const clearLocalAuthState = useCallback(() => {
+    profileRequestId.current += 1;
 
-    if (!userId) {
-      setProfile(null);
-      setProfileLoading(false);
-      return null;
-    }
+    setSession(null);
+    setUser(null);
+    setProfile(null);
+    setProfileLoading(false);
+  }, []);
 
-    try {
-      setProfileLoading(true);
+  const signOutSuspendedUser =
+    useCallback(async () => {
+      /*
+       * Clear the local state first so the protected
+       * application disappears immediately.
+       */
+      clearLocalAuthState();
+      setAuthMessage(SUSPENDED_MESSAGE);
 
-      const currentProfile =
-        await fetchMyProfile(userId);
+      const { error } =
+        await supabase.auth.signOut();
 
-      if (requestId !== profileRequestId.current) {
+      if (error) {
+        console.error(
+          "Unable to sign out suspended user:",
+          error,
+        );
+      }
+    }, [clearLocalAuthState]);
+
+  const loadProfile = useCallback(
+    async (userId) => {
+      const requestId =
+        ++profileRequestId.current;
+
+      if (!userId) {
+        setProfile(null);
+        setProfileLoading(false);
         return null;
       }
 
-      setProfile(currentProfile);
+      try {
+        setProfileLoading(true);
 
-      return currentProfile;
-    } catch (error) {
-      console.error(
-        "Unable to load ClearBudget profile:",
-        error,
-      );
+        const currentProfile =
+          await fetchMyProfile(userId);
 
-      /*
-       * Do not erase an already loaded admin profile
-       * because of a temporary network or duplicate-request
-       * failure.
-       */
-      if (requestId === profileRequestId.current) {
-        setProfile((current) => current);
+        if (
+          requestId !==
+          profileRequestId.current
+        ) {
+          return null;
+        }
+
+        if (
+          currentProfile?.accountStatus ===
+          "suspended"
+        ) {
+          await signOutSuspendedUser();
+          return null;
+        }
+
+        setProfile(currentProfile);
+
+        return currentProfile;
+      } catch (error) {
+        console.error(
+          "Unable to load ClearBudget profile:",
+          error,
+        );
+
+        /*
+         * Do not erase an already loaded profile
+         * because of a temporary request failure.
+         */
+        if (
+          requestId ===
+          profileRequestId.current
+        ) {
+          setProfile((current) => current);
+        }
+
+        return null;
+      } finally {
+        if (
+          requestId ===
+          profileRequestId.current
+        ) {
+          setProfileLoading(false);
+        }
       }
-
-      return null;
-    } finally {
-      if (requestId === profileRequestId.current) {
-        setProfileLoading(false);
-      }
-    }
-  }, []);
+    },
+    [signOutSuspendedUser],
+  );
 
   const applySession = useCallback(
     async (nextSession) => {
-      const nextUser = nextSession?.user ?? null;
+      const nextUser =
+        nextSession?.user ?? null;
 
       setSession(nextSession ?? null);
       setUser(nextUser);
@@ -97,9 +153,12 @@ export function AuthProvider({ children }) {
     async function initializeAuthentication() {
       try {
         const {
-          data: { session: initialSession },
+          data: {
+            session: initialSession,
+          },
           error,
-        } = await supabase.auth.getSession();
+        } =
+          await supabase.auth.getSession();
 
         if (error) {
           throw error;
@@ -117,10 +176,7 @@ export function AuthProvider({ children }) {
         );
 
         if (active) {
-          setSession(null);
-          setUser(null);
-          setProfile(null);
-          setProfileLoading(false);
+          clearLocalAuthState();
         }
       } finally {
         if (active) {
@@ -139,9 +195,6 @@ export function AuthProvider({ children }) {
           return;
         }
 
-        /*
-         * Complete session/profile updates together.
-         */
         await applySession(nextSession);
 
         if (active) {
@@ -155,10 +208,16 @@ export function AuthProvider({ children }) {
       profileRequestId.current += 1;
       subscription.unsubscribe();
     };
-  }, [applySession]);
+  }, [applySession, clearLocalAuthState]);
 
   const signUp = useCallback(
-    async ({ email, password, fullName }) => {
+    async ({
+      email,
+      password,
+      fullName,
+    }) => {
+      setAuthMessage("");
+
       const { data, error } =
         await supabase.auth.signUp({
           email: email.trim(),
@@ -183,6 +242,8 @@ export function AuthProvider({ children }) {
 
   const signIn = useCallback(
     async ({ email, password }) => {
+      setAuthMessage("");
+
       const { data, error } =
         await supabase.auth.signInWithPassword({
           email: email.trim(),
@@ -193,26 +254,52 @@ export function AuthProvider({ children }) {
         throw error;
       }
 
+      /*
+       * Verify account status before allowing the
+       * login flow to continue.
+       */
+      const signedInUser = data?.user;
+
+      if (signedInUser?.id) {
+        const currentProfile =
+          await fetchMyProfile(
+            signedInUser.id,
+          );
+
+        if (
+          currentProfile?.accountStatus ===
+          "suspended"
+        ) {
+          await signOutSuspendedUser();
+
+          throw new Error(
+            SUSPENDED_MESSAGE,
+          );
+        }
+      }
+
       return data;
     },
-    [],
+    [signOutSuspendedUser],
   );
 
   const signOut = useCallback(async () => {
-    const { error } = await supabase.auth.signOut();
+    setAuthMessage("");
+
+    const { error } =
+      await supabase.auth.signOut();
 
     if (error) {
       throw error;
     }
 
-    setSession(null);
-    setUser(null);
-    setProfile(null);
-    setProfileLoading(false);
-  }, []);
+    clearLocalAuthState();
+  }, [clearLocalAuthState]);
 
   const resetPassword = useCallback(
     async (email) => {
+      setAuthMessage("");
+
       const { data, error } =
         await supabase.auth.resetPasswordForEmail(
           email.trim(),
@@ -231,15 +318,26 @@ export function AuthProvider({ children }) {
     [],
   );
 
-  const refreshProfile = useCallback(async () => {
-    if (!user?.id) {
-      return null;
-    }
+  const refreshProfile =
+    useCallback(async () => {
+      if (!user?.id) {
+        return null;
+      }
 
-    return loadProfile(user.id);
-  }, [user?.id, loadProfile]);
+      return loadProfile(user.id);
+    }, [user?.id, loadProfile]);
 
-  const isAdmin = profile?.role === "admin";
+  const clearAuthMessage =
+    useCallback(() => {
+      setAuthMessage("");
+    }, []);
+
+  const isAdmin =
+    profile?.role === "admin";
+
+  const isSuspended =
+    profile?.accountStatus ===
+    "suspended";
 
   const value = useMemo(
     () => ({
@@ -248,8 +346,11 @@ export function AuthProvider({ children }) {
       profile,
       loading,
       profileLoading,
+      authMessage,
       isAdmin,
+      isSuspended,
       refreshProfile,
+      clearAuthMessage,
       signUp,
       signIn,
       signOut,
@@ -261,8 +362,11 @@ export function AuthProvider({ children }) {
       profile,
       loading,
       profileLoading,
+      authMessage,
       isAdmin,
+      isSuspended,
       refreshProfile,
+      clearAuthMessage,
       signUp,
       signIn,
       signOut,
@@ -278,7 +382,9 @@ export function AuthProvider({ children }) {
 }
 
 export function useAuth() {
-  const context = useContext(AuthContext);
+  const context = useContext(
+    AuthContext,
+  );
 
   if (!context) {
     throw new Error(

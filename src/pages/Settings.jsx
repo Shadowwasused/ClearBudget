@@ -1,202 +1,147 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import {
   FiBell,
-  FiCalendar,
   FiCheck,
   FiCreditCard,
   FiDollarSign,
+  FiMonitor,
   FiRefreshCw,
-  FiSave,
   FiSettings,
 } from "react-icons/fi";
 
 import { useUserSettings } from "../context/UserSettingsContext";
 
-import {
-  defaultSettings,
-  fetchSettings,
-  saveSettings,
-} from "../lib/settingsApi";
-
 function Settings() {
   const {
+    settings,
+    settingsLoading,
+    settingsError,
+    selectedTheme,
+    resolvedTheme,
+    roleDefaultTheme,
+    workspace,
     multipleAccountsEnabled,
     updateSetting,
-    settingsLoading,
+    refreshSettings,
   } = useUserSettings();
 
-  const [settings, setSettings] = useState(
-    defaultSettings,
-  );
+  const [savingField, setSavingField] =
+    useState("");
 
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [message, setMessage] = useState("");
+  const [message, setMessage] =
+    useState("");
+
   const [errorMessage, setErrorMessage] =
     useState("");
 
-  const [accountsSaving, setAccountsSaving] =
-    useState(false);
-
-  useEffect(() => {
-    let active = true;
-
-    async function loadSettings() {
-      try {
-        setLoading(true);
-        setErrorMessage("");
-
-        const savedSettings = await fetchSettings();
-
-        if (!active) {
-          return;
-        }
-
-        setSettings(savedSettings);
-        applyTheme(savedSettings.theme);
-      } catch (error) {
-        console.error(
-          "Unable to load settings:",
-          error,
-        );
-
-        if (active) {
-          setErrorMessage(
-            "Unable to load your settings.",
-          );
-        }
-      } finally {
-        if (active) {
-          setLoading(false);
-        }
-      }
-    }
-
-    loadSettings();
-
-    return () => {
-      active = false;
-    };
-  }, []);
-
-  function applyTheme(theme) {
-    document.documentElement.dataset.theme = theme;
-
-    localStorage.setItem(
-      "clearbudget-theme",
-      theme,
-    );
-  }
-
-  function handleChange(event) {
-    const { name, value, type, checked } =
-      event.target;
-
-    const nextValue =
-      type === "checkbox" ? checked : value;
-
-    setSettings((currentSettings) => ({
-      ...currentSettings,
-      [name]: nextValue,
-    }));
-
-    if (name === "theme") {
-      applyTheme(nextValue);
-    }
-
-    setMessage("");
-    setErrorMessage("");
-  }
-
-  async function handleMultipleAccountsToggle() {
+  async function saveSetting(
+    key,
+    value,
+    successMessage,
+  ) {
     try {
-      setAccountsSaving(true);
+      setSavingField(key);
       setMessage("");
       setErrorMessage("");
 
-      const nextValue = !multipleAccountsEnabled;
-
-      await updateSetting(
-        "multiple_accounts",
-        nextValue,
-      );
+      await updateSetting(key, value);
 
       setMessage(
-        nextValue
-          ? "Multiple account tracking enabled."
-          : "Multiple account tracking disabled.",
+        successMessage ||
+          "Setting updated successfully.",
       );
     } catch (error) {
       console.error(
-        "Unable to update multiple account tracking:",
+        `Unable to update ${key}:`,
         error,
       );
 
       setErrorMessage(
         error?.message ||
-          "Unable to update account tracking.",
+          "Your setting could not be updated.",
       );
     } finally {
-      setAccountsSaving(false);
+      setSavingField("");
     }
   }
 
-  async function handleSubmit(event) {
-    event.preventDefault();
+  function handleSelectChange(event) {
+    const { name, value } = event.target;
 
+    const messages = {
+      currency: "Currency updated.",
+      theme: "Workspace appearance updated.",
+      dashboard_period:
+        "Dashboard period updated.",
+    };
+
+    saveSetting(
+      name,
+      value,
+      messages[name],
+    );
+  }
+
+  function handleCheckboxChange(event) {
+    const { name, checked } = event.target;
+
+    const messages = {
+      budget_rollover_enabled: checked
+        ? "Monthly budget rollover enabled."
+        : "Monthly budget rollover disabled.",
+
+      bill_reminders_enabled: checked
+        ? "Bill reminders enabled."
+        : "Bill reminders disabled.",
+
+      multiple_accounts: checked
+        ? "Multiple account tracking enabled."
+        : "Multiple account tracking disabled.",
+    };
+
+    saveSetting(
+      name,
+      checked,
+      messages[name],
+    );
+  }
+
+  async function handleRefresh() {
     try {
-      setSaving(true);
+      setSavingField("refresh");
       setMessage("");
       setErrorMessage("");
 
-      const savedSettings =
-        await saveSettings(settings);
+      await refreshSettings();
 
-      setSettings(savedSettings);
-      applyTheme(savedSettings.theme);
-
-      setMessage("Settings saved successfully.");
+      setMessage(
+        "Settings refreshed from Supabase.",
+      );
     } catch (error) {
       console.error(
-        "Unable to save settings:",
+        "Unable to refresh settings:",
         error,
       );
 
       setErrorMessage(
-        "Your settings could not be saved.",
+        error?.message ||
+          "Settings could not be refreshed.",
       );
     } finally {
-      setSaving(false);
+      setSavingField("");
     }
   }
 
-  function restoreDefaults() {
-    const confirmed = window.confirm(
-      "Restore all settings to their default values?",
-    );
-
-    if (!confirmed) {
-      return;
-    }
-
-    setSettings({ ...defaultSettings });
-    applyTheme(defaultSettings.theme);
-
-    setMessage(
-      "Defaults restored. Select Save settings to keep them.",
-    );
-
-    setErrorMessage("");
-  }
-
-  if (loading || settingsLoading) {
+  if (settingsLoading) {
     return (
       <div className="page-content">
         <section className="content-card">
           <div className="goal-empty-state">
             <FiSettings />
 
-            <strong>Loading settings...</strong>
+            <strong>
+              Loading settings...
+            </strong>
 
             <span>
               Retrieving your preferences from
@@ -219,10 +164,24 @@ function Settings() {
           <h1>Settings</h1>
 
           <p className="page-description">
-            Customize how ClearBudget displays and
-            manages your financial information.
+            Customize your ClearBudget workspace,
+            financial preferences, and optional
+            features.
           </p>
         </div>
+
+        <button
+          className="secondary-button button-with-icon"
+          type="button"
+          onClick={handleRefresh}
+          disabled={Boolean(savingField)}
+        >
+          <FiRefreshCw />
+
+          {savingField === "refresh"
+            ? "Refreshing..."
+            : "Refresh settings"}
+        </button>
       </div>
 
       {message && (
@@ -233,274 +192,323 @@ function Settings() {
         </section>
       )}
 
-      {errorMessage && (
+      {(errorMessage || settingsError) && (
         <section className="content-card">
-          <p>{errorMessage}</p>
+          <p className="money-negative">
+            {errorMessage || settingsError}
+          </p>
         </section>
       )}
 
-      <form onSubmit={handleSubmit}>
-        <section className="content-card">
-          <div className="modal-header">
-            <div>
-              <p className="page-eyebrow">
-                Display
-              </p>
-
-              <h2>Appearance and formatting</h2>
-            </div>
-
-            <FiDollarSign />
-          </div>
-
-          <div className="transaction-form">
-            <div className="form-field">
-              <label htmlFor="currency">
-                Currency
-              </label>
-
-              <select
-                id="currency"
-                name="currency"
-                value={settings.currency}
-                onChange={handleChange}
-              >
-                <option value="USD">
-                  US Dollar (USD)
-                </option>
-
-                <option value="CAD">
-                  Canadian Dollar (CAD)
-                </option>
-
-                <option value="EUR">
-                  Euro (EUR)
-                </option>
-
-                <option value="GBP">
-                  British Pound (GBP)
-                </option>
-              </select>
-            </div>
-
-            <div className="form-field">
-              <label htmlFor="theme">Theme</label>
-
-              <select
-                id="theme"
-                name="theme"
-                value={settings.theme}
-                onChange={handleChange}
-              >
-                <option value="system">
-                  Use device setting
-                </option>
-
-                <option value="light">
-                  Light
-                </option>
-
-                <option value="dark">
-                  Dark
-                </option>
-              </select>
-            </div>
-
-            <div className="form-field">
-              <label htmlFor="dashboardPeriod">
-                Default dashboard period
-              </label>
-
-              <select
-                id="dashboardPeriod"
-                name="dashboardPeriod"
-                value={settings.dashboardPeriod}
-                onChange={handleChange}
-              >
-                <option value="week">
-                  This week
-                </option>
-
-                <option value="month">
-                  This month
-                </option>
-
-                <option value="quarter">
-                  This quarter
-                </option>
-
-                <option value="year">
-                  This year
-                </option>
-              </select>
-            </div>
-          </div>
-        </section>
-
-        <section className="content-card">
-          <div className="modal-header">
-            <div>
-              <p className="page-eyebrow">
-                Calendar
-              </p>
-
-              <h2>Budget preferences</h2>
-            </div>
-
-            <FiCalendar />
-          </div>
-
-          <div className="transaction-form">
-            <div className="form-field">
-              <label htmlFor="weekStartsOn">
-                Week starts on
-              </label>
-
-              <select
-                id="weekStartsOn"
-                name="weekStartsOn"
-                value={settings.weekStartsOn}
-                onChange={handleChange}
-              >
-                <option value="sunday">
-                  Sunday
-                </option>
-
-                <option value="monday">
-                  Monday
-                </option>
-              </select>
-            </div>
-
-            <label className="form-field form-field-full">
-              <span>
-                <strong>
-                  Monthly budget rollover
-                </strong>
-              </span>
-
-              <span>
-                Carry unused budget amounts into the
-                following month.
-              </span>
-
-              <input
-                name="budgetRolloverEnabled"
-                type="checkbox"
-                checked={
-                  settings.budgetRolloverEnabled
-                }
-                onChange={handleChange}
-              />
-            </label>
-          </div>
-        </section>
-
-        <section className="content-card">
-          <div className="modal-header">
-            <div>
-              <p className="page-eyebrow">
-                Notifications
-              </p>
-
-              <h2>Bill reminders</h2>
-            </div>
-
-            <FiBell />
-          </div>
-
-          <div className="transaction-form">
-            <label className="form-field form-field-full">
-              <span>
-                <strong>
-                  Enable bill reminders
-                </strong>
-              </span>
-
-              <span>
-                Show reminders for upcoming and overdue
-                bills.
-              </span>
-
-              <input
-                name="billRemindersEnabled"
-                type="checkbox"
-                checked={
-                  settings.billRemindersEnabled
-                }
-                onChange={handleChange}
-              />
-            </label>
-          </div>
-        </section>
-
-        <section className="content-card">
-          <div className="modal-header">
-            <div>
-              <p className="page-eyebrow">
-                Advanced features
-              </p>
-
-              <h2>Account tracking</h2>
-            </div>
-
-            <FiCreditCard />
-          </div>
-
-          <div className="transaction-form">
-            <label className="form-field form-field-full">
-              <span>
-                <strong>Multiple accounts</strong>
-              </span>
-
-              <span>
-                {multipleAccountsEnabled
-                  ? "Account tracking is enabled. The Accounts page and account fields can be shown."
-                  : "Account tracking is disabled. Income and expenses can be entered without selecting an account."}
-              </span>
-
-              <input
-                type="checkbox"
-                checked={multipleAccountsEnabled}
-                onChange={
-                  handleMultipleAccountsToggle
-                }
-                disabled={accountsSaving}
-              />
-            </label>
-          </div>
-
-          {accountsSaving && (
-            <p className="page-description">
-              Saving account preference...
+      <section className="content-card">
+        <div className="modal-header">
+          <div>
+            <p className="page-eyebrow">
+              Workspace
             </p>
-          )}
-        </section>
 
-        <div className="modal-actions">
-          <button
-            className="secondary-button button-with-icon"
-            type="button"
-            onClick={restoreDefaults}
-            disabled={saving || accountsSaving}
-          >
-            <FiRefreshCw />
-            Restore defaults
-          </button>
+            <h2>
+              Appearance and role experience
+            </h2>
+          </div>
 
-          <button
-            className="primary-button button-with-icon"
-            type="submit"
-            disabled={saving || accountsSaving}
-          >
-            <FiSave />
-
-            {saving
-              ? "Saving..."
-              : "Save settings"}
-          </button>
+          <FiMonitor />
         </div>
-      </form>
+
+        <div className="transaction-form">
+          <div className="form-field">
+            <label htmlFor="theme">
+              Workspace appearance
+            </label>
+
+            <select
+              id="theme"
+              name="theme"
+              value={selectedTheme}
+              onChange={handleSelectChange}
+              disabled={Boolean(savingField)}
+            >
+              <option value="role">
+                Use role default
+              </option>
+
+              <option value="system">
+                Use device setting
+              </option>
+
+              <option value="midnight">
+                Midnight Blue
+              </option>
+
+              <option value="graphite">
+                Graphite
+              </option>
+
+              <option value="light">
+                Light
+              </option>
+
+              <option value="dark">
+                Dark
+              </option>
+            </select>
+
+            <span className="settings-field-help">
+              Role default currently uses{" "}
+              <strong>
+                {roleDefaultTheme}
+              </strong>{" "}
+              for your {workspace} workspace.
+            </span>
+          </div>
+
+          <div className="form-field">
+            <label>
+              Active workspace
+            </label>
+
+            <div className="settings-readonly-value">
+              <strong>
+                {workspace === "admin"
+                  ? "Administrator"
+                  : "Personal"}
+              </strong>
+
+              <span>
+                Active theme: {resolvedTheme}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {savingField === "theme" && (
+          <p className="page-description">
+            Applying workspace appearance...
+          </p>
+        )}
+      </section>
+
+      <section className="content-card">
+        <div className="modal-header">
+          <div>
+            <p className="page-eyebrow">
+              Display
+            </p>
+
+            <h2>
+              Currency and dashboard
+            </h2>
+          </div>
+
+          <FiDollarSign />
+        </div>
+
+        <div className="transaction-form">
+          <div className="form-field">
+            <label htmlFor="currency">
+              Currency
+            </label>
+
+            <select
+              id="currency"
+              name="currency"
+              value={settings.currency || "USD"}
+              onChange={handleSelectChange}
+              disabled={Boolean(savingField)}
+            >
+              <option value="USD">
+                US Dollar (USD)
+              </option>
+
+              <option value="CAD">
+                Canadian Dollar (CAD)
+              </option>
+
+              <option value="EUR">
+                Euro (EUR)
+              </option>
+
+              <option value="GBP">
+                British Pound (GBP)
+              </option>
+            </select>
+          </div>
+
+          <div className="form-field">
+            <label htmlFor="dashboard_period">
+              Default dashboard period
+            </label>
+
+            <select
+              id="dashboard_period"
+              name="dashboard_period"
+              value={
+                settings.dashboard_period ||
+                "month"
+              }
+              onChange={handleSelectChange}
+              disabled={Boolean(savingField)}
+            >
+              <option value="week">
+                This week
+              </option>
+
+              <option value="month">
+                This month
+              </option>
+
+              <option value="quarter">
+                This quarter
+              </option>
+
+              <option value="year">
+                This year
+              </option>
+            </select>
+          </div>
+        </div>
+      </section>
+
+      <section className="content-card">
+        <div className="modal-header">
+          <div>
+            <p className="page-eyebrow">
+              Budgeting
+            </p>
+
+            <h2>
+              Budget preferences
+            </h2>
+          </div>
+
+          <FiDollarSign />
+        </div>
+
+        <div className="transaction-form">
+          <label className="form-field form-field-full settings-toggle-row">
+            <span>
+              <strong>
+                Monthly budget rollover
+              </strong>
+
+              <small>
+                Carry unused budget amounts into
+                the following month.
+              </small>
+            </span>
+
+            <input
+              name="budget_rollover_enabled"
+              type="checkbox"
+              checked={Boolean(
+                settings.budget_rollover_enabled,
+              )}
+              onChange={handleCheckboxChange}
+              disabled={Boolean(savingField)}
+            />
+          </label>
+        </div>
+
+        {savingField ===
+          "budget_rollover_enabled" && (
+          <p className="page-description">
+            Saving rollover preference...
+          </p>
+        )}
+      </section>
+
+      <section className="content-card">
+        <div className="modal-header">
+          <div>
+            <p className="page-eyebrow">
+              Notifications
+            </p>
+
+            <h2>Bill reminders</h2>
+          </div>
+
+          <FiBell />
+        </div>
+
+        <div className="transaction-form">
+          <label className="form-field form-field-full settings-toggle-row">
+            <span>
+              <strong>
+                Enable bill reminders
+              </strong>
+
+              <small>
+                Show reminders for upcoming and
+                overdue bills.
+              </small>
+            </span>
+
+            <input
+              name="bill_reminders_enabled"
+              type="checkbox"
+              checked={Boolean(
+                settings.bill_reminders_enabled,
+              )}
+              onChange={handleCheckboxChange}
+              disabled={Boolean(savingField)}
+            />
+          </label>
+        </div>
+
+        {savingField ===
+          "bill_reminders_enabled" && (
+          <p className="page-description">
+            Saving reminder preference...
+          </p>
+        )}
+      </section>
+
+      <section className="content-card">
+        <div className="modal-header">
+          <div>
+            <p className="page-eyebrow">
+              Advanced features
+            </p>
+
+            <h2>Account tracking</h2>
+          </div>
+
+          <FiCreditCard />
+        </div>
+
+        <div className="transaction-form">
+          <label className="form-field form-field-full settings-toggle-row">
+            <span>
+              <strong>
+                Multiple accounts
+              </strong>
+
+              <small>
+                {multipleAccountsEnabled
+                  ? "Account tracking is enabled. Account pages and transaction account fields are available."
+                  : "Account tracking is disabled. Income and expenses can be entered without choosing an account."}
+              </small>
+            </span>
+
+            <input
+              name="multiple_accounts"
+              type="checkbox"
+              checked={
+                multipleAccountsEnabled
+              }
+              onChange={handleCheckboxChange}
+              disabled={Boolean(savingField)}
+            />
+          </label>
+        </div>
+
+        {savingField ===
+          "multiple_accounts" && (
+          <p className="page-description">
+            Saving account preference...
+          </p>
+        )}
+      </section>
     </div>
   );
 }
