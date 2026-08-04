@@ -10,7 +10,6 @@ import {
 } from "react-icons/fi";
 
 import { fetchFinancialSummary } from "../lib/financialSummaryApi";
-import { generateFinancialReview } from "../lib/aiCoachApi";
 import { formatCurrency } from "../lib/transactions";
 
 function formatDate(value) {
@@ -30,13 +29,6 @@ function AICoach() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
-  const [aiReview, setAiReview] = useState(null);
-
-const [generatingReview, setGeneratingReview] =
-  useState(false);
-
-const [reviewError, setReviewError] =
-  useState("");
 
   async function loadSummary({
     showRefreshState = false,
@@ -204,26 +196,7 @@ const [reviewError, setReviewError] =
       </div>
     );
   }
-  async function handleGenerateReview() {
-  try {
-    setGeneratingReview(true);
-    setReviewError("");
 
-    const result =
-      await generateFinancialReview();
-
-    setAiReview(result.review);
-  } catch (error) {
-    console.error(error);
-
-    setReviewError(
-      error.message ||
-        "Unable to generate AI review."
-    );
-  } finally {
-    setGeneratingReview(false);
-  }
-}
 
   return (
     <div className="page-content">
@@ -270,63 +243,94 @@ const [reviewError, setReviewError] =
 
       {summary && (
         <>
-        <section className="content-card">
-  <div className="card-heading">
-    <div>
-      <p className="card-label">
-        AI Financial Coach
-      </p>
+        <section className="content-card ai-coming-soon-card">
+          <div className="ai-coming-header">
+            <span className="ai-coming-badge">AI COACH</span>
 
-      <h2>Personalized Review</h2>
-    </div>
+            <h2>Meet Your Future Financial Coach</h2>
 
-    <button
-      className="primary-button"
-      onClick={handleGenerateReview}
-      disabled={generatingReview}
-    >
-      {generatingReview
-        ? "Generating..."
-        : "Generate Review"}
-    </button>
-  </div>
+            <p>
+              ClearBudget AI is being built to analyze your
+              spending, budgets, bills, and savings goals to
+              deliver personalized financial guidance.
+            </p>
+          </div>
 
-  {reviewError && (
-    <p className="money-negative">
-      {reviewError}
-    </p>
-  )}
+          <div className="ai-feature-grid">
+            <article className="ai-feature-card">
+              <h3>Monthly Reviews</h3>
+              <p>
+                Personalized financial summaries generated
+                from your own data.
+              </p>
+            </article>
 
-  {aiReview && (
-    <>
-      <h2>{aiReview.score}</h2>
+            <article className="ai-feature-card">
+              <h3>Budget Coaching</h3>
+              <p>
+                Receive recommendations before you exceed
+                your budget.
+              </p>
+            </article>
 
-      <h3>{aiReview.headline}</h3>
+            <article className="ai-feature-card">
+              <h3>Goal Forecasting</h3>
+              <p>
+                Predict when you will reach your savings goals
+                and how to get there faster.
+              </p>
+            </article>
 
-      <p>{aiReview.summary}</p>
+            <article className="ai-feature-card">
+              <h3>Ask Anything</h3>
+              <p>
+                Chat naturally with your own financial coach.
+              </p>
+            </article>
+          </div>
 
-      <h3>Observations</h3>
+          <div className="ai-progress">
+            <div className="ai-progress-header">
+              <strong>Development Progress</strong>
+              <span>75%</span>
+            </div>
 
-      <ul>
-        {aiReview.observations?.map(
-          (item) => (
-            <li key={item}>{item}</li>
-          ),
-        )}
-      </ul>
+            <div className="ai-progress-bar">
+              <div
+                className="ai-progress-fill"
+                style={{ width: "75%" }}
+              />
+            </div>
 
-      <h3>Recommendations</h3>
+            <ul className="ai-progress-list">
+              <li>Financial Summary Engine</li>
+              <li>Spending Analytics</li>
+              <li>Goal Tracking</li>
+              <li>Dashboard Integration</li>
+              <li>AI Review Generation</li>
+              <li>Interactive Chat</li>
+            </ul>
+          </div>
 
-      <ul>
-        {aiReview.recommendations?.map(
-          (item) => (
-            <li key={item}>{item}</li>
-          ),
-        )}
-      </ul>
-    </>
-  )}
-</section>
+          <div className="ai-early-access">
+            <h3>Early Access</h3>
+
+            <p>
+              You are among the first ClearBudget users. AI
+              Coach will automatically become available when
+              it is released.
+            </p>
+
+            <button
+              className="primary-button"
+              type="button"
+              disabled
+            >
+              Coming in the Next Update
+            </button>
+          </div>
+        </section>
+
           <div className="report-summary-grid">
             <SummaryCard
               title="Income this month"

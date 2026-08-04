@@ -4930,3 +4930,334 @@ body {
   color: var(--text-muted);
   font-size: 10px;
 }
+.ai-coming-soon-card {
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+}
+
+.ai-coming-header {
+  text-align: center;
+}
+
+.ai-coming-badge {
+  display: inline-block;
+  margin-bottom: 16px;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent-secondary);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+}
+
+.ai-coming-header h2 {
+  margin: 0 0 12px;
+  color: var(--text-primary);
+  font-size: clamp(26px, 4vw, 34px);
+}
+
+.ai-coming-header p {
+  max-width: 700px;
+  margin: 0 auto;
+  color: var(--text-muted);
+  line-height: 1.7;
+}
+
+.ai-feature-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 18px;
+}
+
+.ai-feature-card {
+  padding: 22px;
+  border: 1px solid var(--border-soft);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.03);
+  transition: transform 0.25s ease, border-color 0.25s ease;
+}
+
+.ai-feature-card:hover {
+  transform: translateY(-4px);
+  border-color: var(--border-medium);
+}
+
+.ai-feature-card h3 {
+  margin: 0 0 10px;
+  color: var(--text-primary);
+}
+
+.ai-feature-card p {
+  margin: 0;
+  color: var(--text-muted);
+  line-height: 1.6;
+}
+
+.ai-progress {
+  padding: 22px;
+  border: 1px solid var(--border-soft);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.ai-progress-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 10px;
+  color: var(--text-primary);
+}
+
+.ai-progress-bar {
+  height: 10px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.ai-progress-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--accent-primary), #22c55e);
+}
+
+.ai-progress-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 10px;
+  margin: 18px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ai-progress-list li {
+  position: relative;
+  padding-left: 24px;
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.ai-progress-list li:nth-child(-n + 4)::before {
+  content: "✓";
+  position: absolute;
+  left: 0;
+  color: #22c55e;
+  font-weight: 900;
+}
+
+.ai-progress-list li:nth-child(n + 5)::before {
+  content: "○";
+  position: absolute;
+  left: 0;
+  color: var(--accent-secondary);
+  font-weight: 900;
+}
+
+.ai-early-access {
+  padding: 30px;
+  border: 1px solid var(--border-soft);
+  border-radius: 18px;
+  text-align: center;
+  background: linear-gradient(135deg, var(--accent-soft), rgba(255, 255, 255, 0.02));
+}
+
+.ai-early-access h3 {
+  margin: 0 0 10px;
+  color: var(--text-primary);
+}
+
+.ai-early-access p {
+  max-width: 620px;
+  margin: 0 auto 18px;
+  color: var(--text-muted);
+  line-height: 1.6;
+}
+
+.ai-early-access .primary-button:disabled {
+  opacity: 0.8;
+  cursor: default;
+}
+
+@media (max-width: 640px) {
+  .ai-coming-soon-card {
+    gap: 20px;
+  }
+
+  .ai-feature-grid,
+  .ai-progress-list {
+    grid-template-columns: 1fr;
+  }
+
+  .ai-early-access {
+    padding: 22px;
+  }
+}
+/* Transaction type selector — hover and selected states */
+
+.transaction-type-option {
+  position: relative;
+  transition:
+    transform 0.18s ease,
+    background 0.18s ease,
+    border-color 0.18s ease,
+    box-shadow 0.18s ease,
+    color 0.18s ease;
+}
+
+.transaction-type-option:hover {
+  transform: translateY(-2px);
+  border-color: var(--accent-secondary) !important;
+  background: var(--accent-soft) !important;
+  color: var(--text-primary) !important;
+  box-shadow: 0 8px 20px rgba(37, 99, 235, 0.16);
+}
+
+.transaction-type-option-active {
+  transform: translateY(-2px);
+  border-color: var(--accent-secondary) !important;
+  background: linear-gradient(
+    135deg,
+    var(--accent-primary),
+    var(--accent-secondary)
+  ) !important;
+  color: #ffffff !important;
+  box-shadow: 0 10px 24px rgba(37, 99, 235, 0.3);
+}
+
+.transaction-type-option-active:hover {
+  border-color: var(--accent-secondary) !important;
+  background: linear-gradient(
+    135deg,
+    var(--accent-primary),
+    var(--accent-secondary)
+  ) !important;
+  color: #ffffff !important;
+}
+
+.transaction-type-option-active::after {
+  content: "✓";
+  margin-left: 8px;
+  font-size: 12px;
+  font-weight: 900;
+}
+/* =========================================================
+   BILLS PRINT FIX
+   ========================================================= */
+
+@media print {
+  @page {
+    size: letter portrait;
+    margin: 0.45in;
+  }
+
+  html,
+  body {
+    width: 100% !important;
+    min-height: 0 !important;
+    height: auto !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #ffffff !important;
+    color: #0f172a !important;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+
+  body::before,
+  body::after,
+  #root::before,
+  #root::after,
+  .app-shell::before,
+  .app-shell::after,
+  .main-content::before,
+  .main-content::after,
+  .page-content::before,
+  .page-content::after {
+    display: none !important;
+    content: none !important;
+  }
+
+  #root,
+  .app-shell,
+  .main-content,
+  .page-content {
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: none !important;
+    min-height: 0 !important;
+    height: auto !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: visible !important;
+    background: #ffffff !important;
+    box-shadow: none !important;
+  }
+
+  .sidebar,
+  .mobile-menu-button,
+  .sidebar-overlay,
+  .feedback-widget,
+  .no-print {
+    display: none !important;
+  }
+
+  .print-only {
+    display: block !important;
+  }
+
+  /*
+   * Hide the regular Bills page content and show only
+   * the dedicated printable report.
+   */
+  .page-content > * {
+    display: none !important;
+  }
+
+  .page-content > .bills-print-report,
+  .page-content > .print-only {
+    display: block !important;
+  }
+
+  .bills-print-report {
+    position: static !important;
+    width: 100% !important;
+    min-height: 0 !important;
+    height: auto !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: visible !important;
+    background: #ffffff !important;
+    color: #0f172a !important;
+    box-shadow: none !important;
+    page-break-after: avoid !important;
+  }
+
+  .bills-print-report *,
+  .bills-print-report *::before,
+  .bills-print-report *::after {
+    box-sizing: border-box !important;
+  }
+
+  .bills-print-report table {
+    width: 100% !important;
+    border-collapse: collapse !important;
+    page-break-inside: auto !important;
+  }
+
+  .bills-print-report thead {
+    display: table-header-group !important;
+  }
+
+  .bills-print-report tr {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  .bills-print-report,
+  .bills-print-report section,
+  .bills-print-report div {
+    background-color: transparent;
+  }
+}
