@@ -18,6 +18,7 @@ import {
 
 import {
   createTransaction,
+  createTransactionWithRecurring,
   deleteTransaction as deleteTransactionFromSupabase,
   fetchTransactions,
   updateTransaction,
@@ -34,6 +35,10 @@ const defaultForm = {
   accountId: "",
   type: "expense",
   notes: "",
+
+  isRecurring: false,
+  frequency: "monthly",
+  endDate: "",
 };
 
 function Transactions() {
@@ -273,6 +278,10 @@ function Transactions() {
         : "",
       type: transaction.type || "expense",
       notes: transaction.notes || "",
+
+isRecurring: false,
+frequency: "monthly",
+endDate: "",
     });
 
     setModalOpen(true);
@@ -319,6 +328,21 @@ function Transactions() {
     }
 
     let selectedAccount = null;
+    if (form.isRecurring && !form.frequency) {
+  alert("Please select a recurring frequency.");
+  return;
+}
+
+if (
+  form.isRecurring &&
+  form.endDate &&
+  form.endDate < form.date
+) {
+  alert(
+    "The recurring end date cannot be before the transaction date.",
+  );
+  return;
+}
 
     if (multipleAccountsEnabled) {
       selectedAccount = accountOptions.find(
@@ -351,6 +375,9 @@ function Transactions() {
         : existingTransaction?.account || "",
       type: form.type,
       notes: form.notes.trim(),
+       isRecurring: form.isRecurring,
+  frequency: form.frequency,
+  endDate: form.endDate || null,
     };
 
     try {
@@ -370,14 +397,25 @@ function Transactions() {
           ),
         );
       } else {
-        const savedTransaction =
-          await createTransaction(transactionData);
+  let savedTransaction;
 
-        setTransactions((currentTransactions) => [
-          savedTransaction,
-          ...currentTransactions,
-        ]);
-      }
+  if (form.isRecurring) {
+    const result =
+      await createTransactionWithRecurring(
+        transactionData,
+      );
+
+    savedTransaction = result.transaction;
+  } else {
+    savedTransaction =
+      await createTransaction(transactionData);
+  }
+
+  setTransactions((currentTransactions) => [
+    savedTransaction,
+    ...currentTransactions,
+  ]);
+}
 
       setModalOpen(false);
       setEditingId(null);
@@ -1063,6 +1101,69 @@ function Transactions() {
                   </label>
                 </div>
               </div>
+{!editingId && (
+  <>
+    <div className="form-field form-field-full">
+      <label className="recurring-toggle">
+        <input
+          type="checkbox"
+          checked={form.isRecurring}
+          onChange={(event) =>
+            setForm((current) => ({
+              ...current,
+              isRecurring: event.target.checked,
+            }))
+          }
+        />
+
+        <span>Make this a recurring transaction</span>
+      </label>
+    </div>
+
+    
+
+{form.isRecurring && (
+  <>
+    <div className="form-field">
+      <label>Frequency</label>
+
+      <select
+        value={form.frequency}
+        onChange={(event) =>
+          setForm((current) => ({
+            ...current,
+            frequency: event.target.value,
+          }))
+        }
+      >
+        <option value="daily">Daily</option>
+        <option value="weekly">Weekly</option>
+        <option value="biweekly">
+          Every 2 Weeks
+        </option>
+        <option value="monthly">Monthly</option>
+        <option value="yearly">Yearly</option>
+      </select>
+    </div>
+
+    <div className="form-field">
+      <label>End Date (optional)</label>
+
+      <input
+        type="date"
+        value={form.endDate}
+        onChange={(event) =>
+          setForm((current) => ({
+            ...current,
+            endDate: event.target.value,
+          }))
+        }
+      />
+    </div>
+  </>
+)}
+  </>
+)}
 
               <div className="form-field form-field-full">
                 <label htmlFor="transaction-notes">

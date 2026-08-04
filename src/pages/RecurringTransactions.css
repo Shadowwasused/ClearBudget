@@ -1,0 +1,268 @@
+.recurring-page-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+}
+
+.recurring-heading-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.recurring-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 18px;
+  margin-bottom: 24px;
+}
+
+.recurring-summary-card {
+  padding: 22px;
+  border: 1px solid #dbe3ee;
+  border-radius: 18px;
+  background: #ffffff;
+  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.07);
+}
+
+.recurring-summary-card span {
+  display: block;
+  color: #64748b;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.recurring-summary-card strong {
+  display: block;
+  margin: 10px 0 5px;
+  color: #0f172a;
+  font-size: 28px;
+}
+
+.recurring-summary-card small {
+  color: #94a3b8;
+}
+
+.recurring-list {
+  display: grid;
+  gap: 16px;
+}
+
+.recurring-card {
+  display: flex;
+  gap: 18px;
+  padding: 22px;
+  border: 1px solid #dbe3ee;
+  border-radius: 19px;
+  background: #ffffff;
+  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.07);
+  transition:
+    transform 160ms ease,
+    box-shadow 160ms ease;
+}
+
+.recurring-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 18px 35px rgba(15, 23, 42, 0.11);
+}
+
+.recurring-card-paused {
+  opacity: 0.7;
+}
+
+.recurring-type-icon {
+  width: 50px;
+  height: 50px;
+  flex: 0 0 50px;
+  border-radius: 15px;
+  display: grid;
+  place-items: center;
+  font-size: 22px;
+}
+
+.recurring-type-income {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.recurring-type-expense {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.recurring-card-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.recurring-card-heading {
+  display: flex;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.recurring-card-heading h2 {
+  margin: 7px 0 0;
+  color: #0f172a;
+  font-size: 19px;
+}
+
+.recurring-card-heading > strong {
+  font-size: 19px;
+  white-space: nowrap;
+}
+
+.recurring-type-label {
+  padding: 5px 9px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 850;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.recurring-type-label-income {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.recurring-type-label-expense {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.recurring-card-details {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 18px;
+  margin-top: 16px;
+}
+
+.recurring-card-details > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: #64748b;
+  font-size: 13px;
+}
+
+.recurring-card-details .recurring-status-active {
+  color: #15803d;
+  font-weight: 800;
+}
+
+.recurring-card-details .recurring-status-paused {
+  color: #92400e;
+  font-weight: 800;
+}
+
+.recurring-card-category,
+.recurring-card-notes {
+  margin: 13px 0 0;
+  color: #64748b;
+  font-size: 13px;
+}
+
+.recurring-card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 9px;
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid #e2e8f0;
+}
+
+.recurring-card-actions button {
+  min-height: 38px;
+  padding: 0 12px;
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  background: #ffffff;
+  color: #334155;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 750;
+  cursor: pointer;
+}
+
+.recurring-card-actions button:hover {
+  background: #f8fafc;
+}
+
+.recurring-card-actions button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.recurring-card-actions .recurring-delete-button {
+  border-color: #fecaca;
+  color: #b91c1c;
+}
+
+.recurring-empty-state {
+  min-height: 300px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 12px;
+  text-align: center;
+}
+
+.recurring-empty-state > svg {
+  color: #2563eb;
+  font-size: 46px;
+}
+
+.recurring-empty-state strong {
+  color: #0f172a;
+  font-size: 20px;
+}
+
+.recurring-empty-state span {
+  max-width: 440px;
+  color: #64748b;
+  line-height: 1.6;
+}
+
+.recurring-empty-state button {
+  margin-top: 10px;
+}
+
+@media (max-width: 900px) {
+  .recurring-page-heading {
+    flex-direction: column;
+  }
+
+  .recurring-summary-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 650px) {
+  .recurring-card {
+    flex-direction: column;
+  }
+
+  .recurring-card-heading {
+    flex-direction: column;
+  }
+
+  .recurring-card-heading > strong {
+    white-space: normal;
+  }
+
+  .recurring-heading-actions {
+    width: 100%;
+  }
+
+  .recurring-heading-actions button {
+    width: 100%;
+  }
+}

@@ -1,5 +1,8 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
 import {
+  FiArrowRight,
   FiBell,
   FiCheck,
   FiCreditCard,
@@ -7,11 +10,13 @@ import {
   FiMonitor,
   FiRefreshCw,
   FiSettings,
+  FiStar,
 } from "react-icons/fi";
 
 import { useUserSettings } from "../context/UserSettingsContext";
 
 function Settings() {
+  const { profile } = useAuth();
   const {
     settings,
     settingsLoading,
@@ -368,6 +373,76 @@ function Settings() {
           </div>
         </div>
       </section>
+      <section className="content-card">
+  <div className="modal-header">
+    <div>
+      <p className="page-eyebrow">
+        Subscription
+      </p>
+
+      <h2>Plan & Billing</h2>
+    </div>
+
+    <FiStar />
+  </div>
+
+  <div className="settings-plan-card">
+    <div className="settings-plan-info">
+      <span className="settings-plan-badge">
+        {(profile?.plan || "free").toUpperCase()}
+      </span>
+
+      <h3>
+        {profile?.subscriptionStatus === "beta"
+  ? "Beta Access"
+  : "Current Plan"}
+      </h3>
+
+      <p>
+        {profile?.subscriptionStatus === "beta"
+  ? "You're currently enjoying every premium feature during the beta."
+  : "Manage your ClearBudget subscription."}
+      </p>
+
+      <ul className="settings-plan-list">
+  <li>
+    ✔ Current plan:{" "}
+    <strong>
+      {profile?.plan === "lifetime"
+        ? "Lifetime"
+        : profile?.plan === "pro"
+          ? "Pro"
+          : "Free"}
+    </strong>
+  </li>
+
+  <li>✔ Pro price: $4.99/month</li>
+
+  <li>
+    ✔ Lifetime option: $39.99 one-time
+  </li>
+</ul>
+    </div>
+
+    <div className="settings-plan-actions">
+      <Link
+        to="/pricing"
+        className="primary-button button-with-icon"
+      >
+        View Pricing
+        <FiArrowRight />
+      </Link>
+
+      <button
+        className="secondary-button"
+        type="button"
+        disabled
+      >
+        Payments available after beta
+      </button>
+    </div>
+  </div>
+</section>
 
       <section className="content-card">
         <div className="modal-header">

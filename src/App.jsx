@@ -20,6 +20,7 @@ import {
   FiShield,
   FiTarget,
   FiX,
+  FiRepeat,
 } from "react-icons/fi";
 
 import { useAuth } from "./context/AuthContext";
@@ -43,6 +44,8 @@ import Onboarding from "./pages/Onboarding";
 import AuthCallback from "./pages/AuthCallback";
 import FeedbackWidget from "./components/FeedbackWidget";
 import AICoach from "./pages/AICoach";
+import Pricing from "./pages/Pricing";
+import RecurringTransactions from "./pages/RecurringTransactions";
 
 const navigationItems = [
   {
@@ -61,6 +64,11 @@ const navigationItems = [
     path: "/transactions",
     icon: FiDollarSign,
   },
+  {
+  name: "Recurring",
+  path: "/recurring",
+  icon: FiRepeat,
+},
   {
     name: "Bills",
     path: "/bills",
@@ -141,6 +149,10 @@ function App() {
         path="/"
         element={<LandingPage user={user} />}
       />
+      <Route
+  path="/pricing"
+  element={<Pricing />}
+/>
 
       <Route
         path="/login"
@@ -414,7 +426,10 @@ function ProtectedApp() {
             path="/transactions"
             element={<Transactions />}
           />
-
+    <Route
+  path="/recurring"
+  element={<RecurringTransactions />}
+/>
           <Route
             path="/bills"
             element={<Bills />}
