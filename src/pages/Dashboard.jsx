@@ -1,6 +1,14 @@
 import { useEffect, useMemo, useState } from "react";
 import { NavLink } from "react-router-dom";
 import {
+  Cell,
+  Pie,
+  PieChart,
+  ResponsiveContainer,
+  Sector,
+  Tooltip,
+} from "recharts";
+import {
   FiCalendar,
   FiCheckCircle,
   FiCreditCard,
@@ -48,6 +56,11 @@ function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] =
     useState("");
+
+  const [
+    activeSpendingIndex,
+    setActiveSpendingIndex,
+  ] = useState(null);
 
   useEffect(() => {
     let active = true;
@@ -247,13 +260,6 @@ function Dashboard() {
       .slice(0, 6);
   }, [transactions, currentDate]);
 
-  const highestCategorySpending = Math.max(
-    ...categorySpending.map(
-      (category) => category.amount,
-    ),
-    1,
-  );
-
   const monthName = new Intl.DateTimeFormat(
     "en-US",
     {
@@ -447,57 +453,22 @@ function Dashboard() {
           </div>
 
           {categorySpending.length > 0 ? (
-            <div className="category-spending-list">
-              {categorySpending.map((item) => {
-                const progress =
-                  (item.amount /
-                    highestCategorySpending) *
-                  100;
-
-                return (
-                  <div
-                    className="category-spending-item"
-                    key={item.category}
-                  >
-                    <div className="category-spending-heading">
-                      <span>
-                        {item.category}
-                      </span>
-
-                      <strong>
-                        {formatCurrency(
-                          item.amount,
-                        )}
-                      </strong>
-                    </div>
-
-                    <div className="category-spending-track">
-                      <div
-                        className="category-spending-fill"
-                        style={{
-                          width: `${progress}%`,
-                        }}
-                      />
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
+            <SpendingDonutChart
+              data={categorySpending}
+              total={Number(
+                monthlyTotals.expenses || 0,
+              )}
+              activeIndex={activeSpendingIndex}
+              onActiveIndexChange={
+                setActiveSpendingIndex
+              }
+            />
           ) : (
             <div className="dashboard-empty-state">
               No expenses have been recorded for this
               month.
             </div>
           )}
-
-          <div className="chart-total">
-            Monthly expenses:{" "}
-            <strong>
-              {formatCurrency(
-                monthlyTotals.expenses,
-              )}
-            </strong>
-          </div>
         </section>
 
         <section className="content-card upcoming-bills-card">
@@ -628,6 +599,321 @@ function Dashboard() {
           </div>
         )}
       </section>
+    </div>
+  );
+}
+
+
+const spendingChartColors = [
+  "#60a5fa",
+  "#22c55e",
+  "#f59e0b",
+  "#a78bfa",
+  "#f472b6",
+  "#06b6d4",
+];
+
+const spendingChartDepthColors = [
+  "#1d4ed8",
+  "#15803d",
+  "#b45309",
+  "#6d28d9",
+  "#be185d",
+  "#0e7490",
+];
+
+function renderActiveSpendingSlice(props) {
+  const {
+    cx,
+    cy,
+    innerRadius,
+    outerRadius,
+    startAngle,
+    endAngle,
+    fill,
+  } = props;
+
+  return (
+    <g className="spending-active-slice">
+      <Sector
+        cx={cx}
+        cy={cy + 7}
+        innerRadius={innerRadius}
+        outerRadius={outerRadius + 8}
+        startAngle={startAngle}
+        endAngle={endAngle}
+        fill="rgba(0, 0, 0, 0.28)"
+      />
+
+      <Sector
+        cx={cx}
+        cy={cy - 3}
+        innerRadius={innerRadius - 2}
+        outerRadius={outerRadius + 10}
+        startAngle={startAngle}
+        endAngle={endAngle}
+        fill={fill}
+      />
+
+      <Sector
+        cx={cx}
+        cy={cy - 3}
+        innerRadius={outerRadius + 13}
+        outerRadius={outerRadius + 16}
+        startAngle={startAngle}
+        endAngle={endAngle}
+        fill={fill}
+        opacity={0.35}
+      />
+    </g>
+  );
+}
+
+function SpendingTooltip({
+  active,
+  payload,
+  total,
+}) {
+  if (!active || !payload?.length) {
+    return null;
+  }
+
+  const item = payload[0]?.payload;
+  const amount = Number(item?.amount || 0);
+
+  const percentage =
+    total > 0
+      ? ((amount / total) * 100).toFixed(1)
+      : "0.0";
+
+  return (
+    <div className="spending-chart-tooltip">
+      <span>{item?.category || "Other"}</span>
+
+      <strong>{formatCurrency(amount)}</strong>
+
+      <small>{percentage}% of monthly spending</small>
+    </div>
+  );
+}
+
+function SpendingDonutChart({
+  data,
+  total,
+  activeIndex,
+  onActiveIndexChange,
+}) {
+  const activeItem =
+    activeIndex !== null
+      ? data[activeIndex]
+      : null;
+
+  const activeAmount = Number(
+    activeItem?.amount || total,
+  );
+
+  const activePercentage =
+    activeItem && total > 0
+      ? (
+          (Number(activeItem.amount || 0) /
+            total) *
+          100
+        ).toFixed(1)
+      : null;
+
+  return (
+    <div
+      className="spending-chart-layout"
+      onMouseLeave={() =>
+        onActiveIndexChange(null)
+      }
+    >
+      <div className="spending-chart-stage">
+        <ResponsiveContainer
+          width="100%"
+          height={320}
+        >
+          <PieChart>
+            <defs>
+              <filter
+                id="spending-chart-shadow"
+                x="-30%"
+                y="-30%"
+                width="160%"
+                height="180%"
+              >
+                <feDropShadow
+                  dx="0"
+                  dy="10"
+                  stdDeviation="8"
+                  floodColor="#000000"
+                  floodOpacity="0.38"
+                />
+              </filter>
+            </defs>
+
+            <Pie
+              data={data}
+              dataKey="amount"
+              nameKey="category"
+              cx="50%"
+              cy="50%"
+              innerRadius={72}
+              outerRadius={112}
+              startAngle={90}
+              endAngle={-270}
+              paddingAngle={2}
+              stroke="rgba(255,255,255,0.08)"
+              strokeWidth={1}
+              isAnimationActive={false}
+              cy="53%"
+            >
+              {data.map((item, index) => (
+                <Cell
+                  key={`depth-${item.category}`}
+                  fill={
+                    spendingChartDepthColors[
+                      index %
+                        spendingChartDepthColors.length
+                    ]
+                  }
+                  opacity={0.9}
+                />
+              ))}
+            </Pie>
+
+            <Pie
+              data={data}
+              dataKey="amount"
+              nameKey="category"
+              cx="50%"
+              cy="49%"
+              innerRadius={72}
+              outerRadius={112}
+              startAngle={90}
+              endAngle={-270}
+              paddingAngle={2}
+              stroke="rgba(255,255,255,0.14)"
+              strokeWidth={1}
+              animationBegin={100}
+              animationDuration={900}
+              activeIndex={
+                activeIndex === null
+                  ? undefined
+                  : activeIndex
+              }
+              activeShape={
+                renderActiveSpendingSlice
+              }
+              onMouseEnter={(_, index) =>
+                onActiveIndexChange(index)
+              }
+              style={{
+                filter:
+                  "url(#spending-chart-shadow)",
+                cursor: "pointer",
+              }}
+            >
+              {data.map((item, index) => (
+                <Cell
+                  key={item.category}
+                  fill={
+                    spendingChartColors[
+                      index %
+                        spendingChartColors.length
+                    ]
+                  }
+                />
+              ))}
+            </Pie>
+
+            <Tooltip
+              cursor={false}
+              content={
+                <SpendingTooltip
+                  total={total}
+                />
+              }
+            />
+          </PieChart>
+        </ResponsiveContainer>
+
+        <div className="spending-chart-center">
+          <span>
+            {activeItem
+              ? activeItem.category
+              : "Monthly expenses"}
+          </span>
+
+          <strong>
+            {formatCurrency(activeAmount)}
+          </strong>
+
+          <small>
+            {activePercentage
+              ? `${activePercentage}% of total`
+              : "Hover over a category"}
+          </small>
+        </div>
+      </div>
+
+      <div className="spending-chart-legend">
+        {data.map((item, index) => {
+          const percentage =
+            total > 0
+              ? (
+                  (Number(item.amount || 0) /
+                    total) *
+                  100
+                ).toFixed(1)
+              : "0.0";
+
+          const isActive =
+            activeIndex === index;
+
+          return (
+            <button
+              className={
+                isActive
+                  ? "spending-legend-item spending-legend-item-active"
+                  : "spending-legend-item"
+              }
+              type="button"
+              key={item.category}
+              onMouseEnter={() =>
+                onActiveIndexChange(index)
+              }
+              onFocus={() =>
+                onActiveIndexChange(index)
+              }
+              onBlur={() =>
+                onActiveIndexChange(null)
+              }
+            >
+              <span
+                className="spending-legend-dot"
+                style={{
+                  background:
+                    spendingChartColors[
+                      index %
+                        spendingChartColors.length
+                    ],
+                }}
+              />
+
+              <span className="spending-legend-copy">
+                <strong>{item.category}</strong>
+
+                <small>{percentage}%</small>
+              </span>
+
+              <strong>
+                {formatCurrency(item.amount)}
+              </strong>
+            </button>
+          );
+        })}
+      </div>
     </div>
   );
 }
